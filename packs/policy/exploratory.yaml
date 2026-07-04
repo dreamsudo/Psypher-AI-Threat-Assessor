@@ -1,0 +1,16 @@
+# packs/policy/exploratory.yaml — Branch B safeguard profile: EXPLORATORY.
+# For research: wider prediction. Still evidence-leashed (integrity floor holds).
+grounding:
+  min_grains_for_possible: 1
+prediction:
+  enable_structural: true
+  enable_posture_inference: true    # emit evidence-leashed "possible" findings
+  enable_behavioral: true
+  max_inference_depth: 2
+confidence:
+  min_confidence_to_report: "low"
+  possible_findings_require_label: true
+severity:
+  cap_possible_at: "high"
+scope:
+  domains: ["enterprise", "atlas"]

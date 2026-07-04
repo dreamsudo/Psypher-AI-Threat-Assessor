@@ -1,0 +1,4 @@
+{ "id": "container_runtime", "tier": "passive",
+  "applies_to": ["host", "inference_endpoint"], "observes": ["container_runtime"],
+  "run": { "type": "shell", "cmd": "if [ -f /.dockerenv ]; then echo docker; elif [ -f /run/.containerenv ]; then echo podman; elif grep -qE 'docker|lxc|kubepods|containerd' /proc/1/cgroup 2>/dev/null; then echo cgroup-container; else echo none; fi", "via": "ssh" },
+  "parse": { "lines": true, "attribute": "container_runtime" } }

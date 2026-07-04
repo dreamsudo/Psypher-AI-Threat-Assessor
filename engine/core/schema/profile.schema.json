@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psypherlabs.dev/schema/profile.schema.json",
+  "title": "Target profile",
+  "description": "Component kinds for a class of target, and the probes each invites.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "components"],
+  "properties": {
+    "name": { "type": "string" },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": { "type": "string" },
+          "description": { "type": "string" },
+          "probes": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

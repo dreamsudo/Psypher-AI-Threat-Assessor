@@ -1,0 +1,21 @@
+# Psypher AI Threat Assessor — operator intake (facts no probe can reach).
+# Copyright (c) 2026 PsypherLabs. All rights reserved.
+#
+# Each answered question becomes a grain on the "engagement" component and is
+# available to later analysis exactly like a probed fact, with its stated
+# confidence.
+
+name: "ml-inference cluster intake"
+questions:
+  - key: "deployment_environment"
+    question: "Is this cluster internet-facing or internal-only?"
+    answer: "internal-only"
+    confidence: "high"
+  - key: "model_provenance"
+    question: "Are served model checkpoints fetched from an external registry (e.g. HuggingFace Hub)?"
+    answer: "yes - HuggingFace Hub, not pinned by digest"
+    confidence: "high"
+  - key: "tenant_isolation"
+    question: "Do untrusted tenants share the inference API?"
+    answer: "yes - multi-tenant"
+    confidence: "medium"

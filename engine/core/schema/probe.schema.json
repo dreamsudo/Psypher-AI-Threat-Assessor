@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psypherlabs.dev/schema/probe.schema.json",
+  "title": "Probe manifest",
+  "description": "A swappable probe definition executed by the sealed harness.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "tier", "run"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Stable identifier; referenced by the engagement allowlist."
+    },
+    "tier": {
+      "enum": ["passive", "active_safe", "intrusive"],
+      "description": "Risk tier; gated by engagement policy."
+    },
+    "applies_to": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Component kinds this probe is relevant to."
+    },
+    "observes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Grain attributes this probe can establish."
+    },
+    "run": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["shell", "script", "http"] },
+        "cmd": { "type": "string" },
+        "via": { "enum": ["local", "ssh"] },
+        "path": { "type": "string" },
+        "entry": { "type": "string" },
+        "method": { "type": "string" },
+        "path_suffix": { "type": "string" }
+      },
+      "allOf": [
+        { "if": { "properties": { "type": { "const": "shell" } } }, "then": { "required": ["cmd"] } },
+        { "if": { "properties": { "type": { "const": "script" } } }, "then": { "required": ["path", "entry"] } },
+        { "if": { "properties": { "type": { "const": "http" } } }, "then": { "required": ["method"] } }
+      ]
+    },
+    "parse": {
+      "type": "object",
+      "description": "How to turn raw probe output into grain attributes."
+    }
+  }
+}

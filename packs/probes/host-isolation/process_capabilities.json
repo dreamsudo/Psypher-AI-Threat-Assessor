@@ -1,0 +1,4 @@
+{ "id": "process_capabilities", "tier": "passive",
+  "applies_to": ["host", "inference_endpoint"], "observes": ["effective_caps"],
+  "run": { "type": "shell", "cmd": "grep -E '^CapEff:' /proc/self/status 2>/dev/null || echo unknown", "via": "ssh" },
+  "parse": { "lines": true, "attribute": "effective_caps" } }

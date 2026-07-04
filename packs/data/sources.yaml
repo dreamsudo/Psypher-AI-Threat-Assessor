@@ -1,0 +1,9 @@
+# packs/data/sources.yaml — Psypher data-source catalog.
+# DOCUMENTS the graph data sources; does NOT authorize. The authoritative list
+# stays graph.sources in assessor.yaml. verify.py --mode sources asserts they
+# match. References the big data files by path; never contains them.
+sources:
+  - {id: atlas,  path: data/atlas-data,       format: stix, enabled: true, note: "ATLAS techniques; bundle v0.1 - refresh pending"}
+  - {id: attack, path: data/attack-stix-data, format: stix, enabled: true, note: "ATT&CK Enterprise"}
+  - {id: cve,    path: data/cve,              format: json, enabled: true, note: "CVE records"}
+  - {id: cwe,    path: data/cwe,              format: xml,  enabled: true, note: "CWE weaknesses"}

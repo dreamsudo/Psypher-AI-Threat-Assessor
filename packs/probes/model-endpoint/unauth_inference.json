@@ -1,0 +1,4 @@
+{ "id": "unauth_inference", "tier": "active_safe",
+  "applies_to": ["inference_endpoint"], "observes": ["inference_api_auth"],
+  "run": { "type": "http", "method": "GET", "path_suffix": "/api/tags" },
+  "parse": { "json": "status", "attribute": "inference_api_auth" } }

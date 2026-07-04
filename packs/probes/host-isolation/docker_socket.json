@@ -1,0 +1,4 @@
+{ "id": "docker_socket", "tier": "passive",
+  "applies_to": ["host", "inference_endpoint"], "observes": ["docker_socket"],
+  "run": { "type": "shell", "cmd": "test -S /var/run/docker.sock && echo present || echo absent", "via": "ssh" },
+  "parse": { "lines": true, "attribute": "docker_socket" } }

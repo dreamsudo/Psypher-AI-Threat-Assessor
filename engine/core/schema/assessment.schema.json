@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psypherlabs.dev/schema/assessment.schema.json",
+  "title": "Assessment brief",
+  "description": "The canonical assessment.json that every renderer consumes.",
+  "type": "object",
+  "required": ["case", "provenance", "summary", "findings"],
+  "properties": {
+    "case": {
+      "type": "object",
+      "required": ["id", "created", "tool_version", "target_name"],
+      "properties": {
+        "id": { "type": "string" },
+        "created": { "type": "string" },
+        "tool_version": { "type": "string" },
+        "target_name": { "type": "string" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "tool_version": { "type": "string" },
+        "created": { "type": "string" },
+        "source_versions": { "type": "object" },
+        "graph_hash": { "type": "string" },
+        "probe_log": { "type": "array" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["findings_total", "by_severity"],
+      "properties": {
+        "findings_total": { "type": "integer", "minimum": 0 },
+        "by_severity": { "type": "object" },
+        "frameworks": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "components": { "type": "array" },
+    "grains": { "type": "array" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "component", "title", "severity", "confidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "component": { "type": "string" },
+          "title": { "type": "string" },
+          "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
+          "confidence": { "enum": ["verified", "high", "medium", "low", "unverified"] },
+          "techniques": { "type": "array" },
+          "vulnerabilities": { "type": "array" },
+          "mitigations": { "type": "array" },
+          "attack_path": { "type": "string" },
+          "evidence": { "type": "object" }
+        }
+      }
+    },
+    "kill_chains": { "type": "array" }
+  }
+}

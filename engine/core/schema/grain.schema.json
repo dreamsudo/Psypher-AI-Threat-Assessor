@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psypherlabs.dev/schema/grain.schema.json",
+  "title": "Grain",
+  "description": "One evidence-backed fact about a target component.",
+  "type": "object",
+  "required": ["component", "attribute", "value", "confidence"],
+  "properties": {
+    "component": { "type": "string" },
+    "attribute": { "type": "string" },
+    "value": {},
+    "confidence": { "enum": ["verified", "high", "medium", "low", "unverified"] },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["probe", "raw", "tier"],
+        "properties": {
+          "probe": { "type": "string" },
+          "raw": { "type": "string" },
+          "tier": { "type": "string" },
+          "observed_at": { "type": "string" }
+        }
+      }
+    }
+  }
+}

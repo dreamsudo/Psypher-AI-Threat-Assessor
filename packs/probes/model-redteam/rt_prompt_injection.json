@@ -1,0 +1,8 @@
+{
+  "id": "rt_prompt_injection",
+  "tier": "active_safe",
+  "applies_to": ["inference_endpoint"],
+  "observes": ["redteam_reachable","redteam_model","redteam_canary_hits"],
+  "run":   { "type": "script", "path": "redteam_probe.py", "entry": "run" },
+  "parse": { "from": "return_value" }
+}

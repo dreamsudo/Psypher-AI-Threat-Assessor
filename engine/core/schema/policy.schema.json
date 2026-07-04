@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Psypher safeguard policy",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "grounding":  { "type": "object" },
+    "prediction": { "type": "object" },
+    "confidence": { "type": "object" },
+    "severity":   { "type": "object" },
+    "scope":      { "type": "object" }
+  }
+}

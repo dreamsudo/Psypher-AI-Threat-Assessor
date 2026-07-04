@@ -1,0 +1,8 @@
+{
+  "id": "embedding_probe",
+  "tier": "active_safe",
+  "applies_to": ["inference_endpoint"],
+  "observes": ["engine_reachable", "openai_compatible", "served_model"],
+  "run": { "type": "script", "path": "embedding_probe.py", "entry": "run" },
+  "parse": { "from": "return_value" }
+}

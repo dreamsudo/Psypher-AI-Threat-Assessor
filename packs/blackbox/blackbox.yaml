@@ -1,0 +1,26 @@
+# =============================================================================
+#  packs/blackbox/blackbox.yaml
+#  Psypher AI Threat Assessor  ·  (c) 2026 PsypherLabs  ·  All rights reserved.
+#  ISOLATED BLACK-BOX PROBE — standalone side-quest config. SEPARATE from
+#  assessor.yaml and the main pipeline. Run ONLY by blackbox-run.sh, OFF by
+#  default, NOT a phase, NOT allowlisted. Mirrors the script-probe contract.
+# =============================================================================
+enabled: false
+target:
+  id: "blackbox-target"
+  kind: "inference_endpoint"
+  access: "gray"
+  endpoint: "http://localhost:11434"
+  ssh: "chris@localhost"
+  auth_env: null
+directions:
+  http:
+    method: "GET"
+    path_suffix: "/api/version"
+    note: "hello world baseline"
+  infra:
+    command: "echo hello world; uname -sr; id -un"
+    note: "mirrors _run_shell SSH pattern"
+output:
+  dir: "blackbox-out"
+  tag: "blackbox"

@@ -1,0 +1,8 @@
+{
+  "id": "listening_sockets",
+  "tier": "passive",
+  "applies_to": ["host", "inference_endpoint"],
+  "observes": ["listening_port"],
+  "run": { "type": "shell", "cmd": "ss -tlnH 2>/dev/null | awk '{print $4}' | sed 's/.*://' | sort -un", "via": "ssh" },
+  "parse": { "lines": true, "attribute": "listening_port" }
+}

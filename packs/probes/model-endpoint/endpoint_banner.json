@@ -1,0 +1,4 @@
+{ "id": "endpoint_banner", "tier": "active_safe",
+  "applies_to": ["inference_endpoint"], "observes": ["endpoint_version"],
+  "run": { "type": "http", "method": "GET", "path_suffix": "/api/version" },
+  "parse": { "json": "json.version", "attribute": "endpoint_version" } }

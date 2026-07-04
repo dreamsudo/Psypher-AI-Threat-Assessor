@@ -1,0 +1,8 @@
+{
+  "id": "pip_freeze",
+  "tier": "passive",
+  "applies_to": ["host", "inference_endpoint"],
+  "observes": ["python_package", "version"],
+  "run": { "type": "shell", "cmd": "pip freeze 2>/dev/null || pip3 freeze", "via": "ssh" },
+  "parse": { "regex": "^(?P<python_package>vllm|torch|transformers|fastapi|ray|sglang)==(?P<version>[\\w.\\-]+)$" }
+}

@@ -1,0 +1,29 @@
+# Psypher AI Threat Assessor — packaging and tooling configuration.
+# Copyright (c) 2026 PsypherLabs. All rights reserved.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "psypher-assessor"
+version = "0.1.0"
+description = "Evidence-driven, framework-grounded threat assessment engine."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [{ name = "PsypherLabs" }]
+dependencies = [
+    "pyyaml>=6.0",
+    "jsonschema>=4.21",
+    "rich>=13.7",
+]
+
+[project.scripts]
+psypher-assess = "engine.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["engine*"]
+
+[tool.setuptools.package-data]
+"engine" = ["core/schema/*.json"]

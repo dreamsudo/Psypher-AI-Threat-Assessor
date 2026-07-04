@@ -1,0 +1,38 @@
+# =============================================================================
+#  packs/probes/probes.yaml
+#  Psypher AI Threat Assessor  ·  (c) 2026 PsypherLabs  ·  All rights reserved.
+#  PROBE CATALOG — the single human-facing view of every probe across both
+#  surfaces. This file DOCUMENTS; it does NOT authorize. The security gate stays
+#  the `probes.allowlist` in assessor.yaml, enforced by the sealed loader.py.
+#  tests/verify.py (--mode probes) asserts this catalog's enabled set matches
+#  the allowlist, so drift is caught — but nothing here ever writes the gate.
+#    surface: infra | behavioral | embeddings
+#    kind:    analysis (pure descriptor) | code (runs a reviewed module/shell)
+#    enabled: mirrors the allowlist; edit the allowlist to actually change it.
+# =============================================================================
+probes:
+  # --- infrastructure · analysis (shell/http descriptors) ------------------
+  - {id: api_banner,           surface: infra,      kind: code,     enabled: true}
+  - {id: endpoint_banner,      surface: infra,      kind: code,     enabled: true}
+  - {id: listening_sockets,    surface: infra,      kind: code,     enabled: true}
+  - {id: detect_virt,          surface: infra,      kind: code,     enabled: true}
+  - {id: host_hypervisor_dmi,  surface: infra,      kind: code,     enabled: true}
+  - {id: container_runtime,    surface: infra,      kind: code,     enabled: true}
+  - {id: process_capabilities, surface: infra,      kind: code,     enabled: true}
+  - {id: syscall_filtering,    surface: infra,      kind: code,     enabled: true}
+  - {id: mac_confinement,      surface: infra,      kind: code,     enabled: true}
+  - {id: docker_socket,        surface: infra,      kind: code,     enabled: true}
+  - {id: cred_env_names,       surface: infra,      kind: code,     enabled: true}
+  - {id: world_readable_secrets, surface: infra,    kind: code,     enabled: true}
+  - {id: mgmt_exposed,         surface: infra,      kind: code,     enabled: true}
+  - {id: model_digest,         surface: infra,      kind: code,     enabled: true}
+  - {id: pip_freeze,           surface: infra,      kind: code,     enabled: true}
+  - {id: unauth_inference,     surface: infra,      kind: code,     enabled: true}
+  # --- embeddings ----------------------------------------------------------
+  - {id: embedding_probe,      surface: embeddings, kind: code,     enabled: true}
+  # --- behavioral · code (red-team capture probes) -------------------------
+  - {id: rt_prompt_injection,  surface: behavioral, kind: code,     enabled: true}
+  - {id: rt_jailbreak,         surface: behavioral, kind: code,     enabled: false}
+  - {id: rt_system_prompt_leak, surface: behavioral, kind: code,    enabled: false}
+  - {id: rt_data_leakage,      surface: behavioral, kind: code,     enabled: false}
+  - {id: rt_indirect_injection, surface: behavioral, kind: code,    enabled: false}

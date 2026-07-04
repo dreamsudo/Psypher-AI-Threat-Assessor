@@ -1,0 +1,6 @@
+{ "id": "cred_env_names", "tier": "passive",
+  "applies_to": ["host", "inference_endpoint"], "observes": ["exposed_cred_env"],
+  "run": { "type": "shell",
+    "cmd": "for p in $(pgrep -x ollama 2>/dev/null; pgrep -f 'ollama serve' 2>/dev/null); do tr '\\0' '\\n' < /proc/$p/environ 2>/dev/null; done | grep -aoiE '^[A-Z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)[A-Z0-9_]*=' 2>/dev/null | sed 's/=$//' | grep -aE '^[A-Za-z0-9_]+$' | sort -u | head -20",
+    "via": "ssh" },
+  "parse": { "lines": true, "attribute": "exposed_cred_env" } }

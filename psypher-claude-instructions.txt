@@ -1,0 +1,65 @@
+PSYPHER — DEFINITIVE CLAUDE-INSTRUCTION SCAN · Fri Jul  3 08:29:31 AM PDT 2026
+======================================================================
+
+>>> A. EVERY MODEL CALL SITE IN THE REPO (must be exactly the 4 touchpoints)
+----------------------------------------------------------------------
+engine/discovery/strategy.py:113:        self._client = anthropic.Anthropic(api_key=api_key)
+engine/discovery/strategy.py:157:            response = self._client.messages.create(
+engine/analysis/brain.py:608:        client = anthropic.Anthropic()
+engine/analysis/brain.py:609:        resp = client.messages.create(
+engine/analysis/analyze.py:197:        self._client = anthropic.Anthropic(api_key=api_key)
+engine/analysis/analyze.py:258:            response = self._client.messages.create(
+engine/graph/enrich.py:73:        self._client = anthropic.Anthropic(api_key=api_key)
+engine/graph/enrich.py:111:            response = self._client.messages.create(
+
+>>> B. EVERY SYSTEM-PROMPT CONSTANT + system= ARGUMENT
+----------------------------------------------------------------------
+engine/core/evidence_log.py:113:                                  probe="rt_prompt_injection",
+engine/core/evidence_log.py:114:                                  attack_id="rt_prompt_injection_override",
+engine/discovery/strategy.py:90:_SYSTEM = (
+engine/discovery/strategy.py:160:                system=_SYSTEM,
+engine/analysis/brain.py:477:_JUDGE_SYSTEM = (
+engine/analysis/brain.py:596:            "prompt": (it.get("_prompt", it.get("prompt", "")) or "")[:600],
+engine/analysis/brain.py:612:            system=_JUDGE_SYSTEM,
+engine/analysis/brain.py:820:    history) and attach the full text under _prompt/_response for the judge.
+engine/analysis/brain.py:841:            it["_prompt"] = record.get("prompt", "")
+engine/analysis/analyze.py:174:_ASSESS_SYSTEM = (
+engine/analysis/analyze.py:259:                model=self._model, max_tokens=2048, system=_ASSESS_SYSTEM,
+engine/graph/enrich.py:54:_SYSTEM = (
+engine/graph/enrich.py:114:                system=_SYSTEM,
+
+>>> C. EVERY INSTRUCTION-SHAPED STRING (catches un-named prompts)
+----------------------------------------------------------------------
+engine/discovery/strategy.py:91:    "You are the reconnaissance planner for a security threat-assessment engine. "
+engine/discovery/strategy.py:154:            "Select the next probe that will reveal the most new inventory, or declare done."
+engine/analysis/killchain.py:31:    """Rank a technique by the order of the first tactic it accomplishes."""
+engine/analysis/killchain.py:32:    best_rank = len(_TACTIC_ORDER) + 1
+engine/analysis/killchain.py:39:        rank = _TACTIC_ORDER.index(shortname) if shortname in _TACTIC_ORDER else len(_TACTIC_ORDER)
+engine/analysis/killchain.py:40:        if rank < best_rank:
+engine/analysis/brain.py:18:#    * BEHAVIORAL findings (grade "demonstrated"): the red-team probe pack
+engine/analysis/brain.py:24:#    * POSTURE findings (grade "possible"): infrastructure grains that make an
+engine/analysis/brain.py:97:# rich is already used by the engine's startup banner, but we still degrade to
+engine/analysis/brain.py:478:    "You are a security analyst grading whether a language model RESISTED or "
+engine/analysis/brain.py:480:    "you are given the exact prompt sent, the model's exact response, and whether a "
+engine/analysis/brain.py:558:    API call fails. Every such condition is logged so a silent downgrade to the
+engine/analysis/brain.py:603:        "Grade these attack exchanges. Return one verdict per attack via the tool.\n\n"
+engine/analysis/brain.py:735:            "match": "behavioral" if grade == "demonstrated" else "assessed-possible",
+engine/analysis/policy.py:50:_CONF_RANK = {"low": 0, "medium": 1, "high": 2, "verified": 2, "unverified": 0}
+engine/analysis/policy.py:51:_SEV_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+engine/analysis/policy.py:60:    if grade == "possible":
+engine/analysis/policy.py:63:            for name, rank in _SEV_RANK.items():
+engine/analysis/policy.py:64:                if rank == cap:
+engine/analysis/analyze.py:175:    "You are a security analyst assessing an AI inference platform. You are given vulnerability "
+engine/analysis/analyze.py:254:            "Assess these vulnerability candidates for the component below and call the tool with "
+
+>>> D. COUNT — number of model call sites (should be 4)
+----------------------------------------------------------------------
+engine/discovery/strategy.py:1
+engine/analysis/brain.py:1
+engine/analysis/analyze.py:1
+engine/graph/enrich.py:1
+
+>>> E. TARGET-SIDE ATTACK PROMPTS (NOT Claude instructions — separate)
+----------------------------------------------------------------------
+17
+   (count of attack-corpus prompt fields; these go to the model under test)

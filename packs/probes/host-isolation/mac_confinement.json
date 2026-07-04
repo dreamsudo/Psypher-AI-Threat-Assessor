@@ -1,0 +1,4 @@
+{ "id": "mac_confinement", "tier": "passive",
+  "applies_to": ["host", "inference_endpoint"], "observes": ["mac_profile"],
+  "run": { "type": "shell", "cmd": "cat /proc/self/attr/current 2>/dev/null || echo none", "via": "ssh" },
+  "parse": { "lines": true, "attribute": "mac_profile" } }

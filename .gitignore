@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.swp
+*.bak
+*.bak-*
+build/graph/
+logs/
+assessments/
+blackbox-out/
+data/atlas-data/
+data/attack-stix-data/
+data/cwe/

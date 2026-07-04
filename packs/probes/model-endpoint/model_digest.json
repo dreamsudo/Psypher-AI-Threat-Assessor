@@ -1,0 +1,4 @@
+{ "id": "model_digest", "tier": "passive",
+  "applies_to": ["inference_endpoint"], "observes": ["served_model_digest"],
+  "run": { "type": "http", "method": "GET", "path_suffix": "/api/tags" },
+  "parse": { "json": "json.models.0.digest", "attribute": "served_model_digest" } }

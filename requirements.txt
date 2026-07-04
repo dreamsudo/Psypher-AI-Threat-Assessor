@@ -1,0 +1,11 @@
+# Psypher AI Threat Assessor — engine core runtime dependencies (bootstrap 1).
+# Copyright (c) 2026 PsypherLabs. All rights reserved.
+# Later bootstraps append their own dependencies to this file.
+pyyaml>=6.0
+jsonschema>=4.21
+rich>=13.7
+# Added by bootstrap-2-discovery.sh — Claude-driven reconnaissance.
+anthropic>=0.40
+
+# Phase 3 (report) — pure-Python PDF rendering (no system libraries).
+fpdf2>=2.7

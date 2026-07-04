@@ -1,0 +1,68 @@
+# Psypher AI Threat Assessor — engagement control plane.
+engagement:
+  name: "ollama-tinyllama"
+  case_prefix: "CASE"
+  operator: "operator@psypherlabs"
+
+scope:
+  in_scope:
+    - id: "target"
+      kind: "inference_endpoint"
+      access: "gray"
+      endpoint: "http://localhost:11434"
+      ssh: "chris@localhost"
+  out_of_scope: []
+
+probes:
+  packs:
+    - "packs/probes/ml-inference"
+    - "packs/probes/model-redteam"
+    - "packs/probes/host-isolation"
+    - "packs/probes/model-endpoint"
+  tiers:
+    passive:     { enabled: true }
+    active_safe: { enabled: true }
+    intrusive:   { enabled: false, require_approval: true }
+  allowlist:
+    - "api_banner"
+    - "pip_freeze"
+    - "detect_virt"
+    - "listening_sockets"
+    - "embedding_probe"
+    - "host_hypervisor_dmi"
+    - "container_runtime"
+    - "process_capabilities"
+    - "syscall_filtering"
+    - "mac_confinement"
+    - "docker_socket"
+    - "cred_env_names"
+    - "world_readable_secrets"
+    - "unauth_inference"
+    - "mgmt_exposed"
+    - "endpoint_banner"
+    - "model_digest"
+    - "rt_prompt_injection"
+
+intake:
+  questionnaire: "packs/intake/ollama.yaml"
+
+model:
+  provider: "anthropic"
+  recon_model: "claude-sonnet-4-6"
+  analysis_model: "claude-sonnet-4-6"
+  review_model: "claude-sonnet-4-6"
+  api_key_env: "ANTHROPIC_API_KEY"
+
+graph:
+  store: "build/graph"
+  enrich: true
+  sources:
+    - { id: "atlas",  path: "data/atlas-data",       format: "stix" }
+    - { id: "attack", path: "data/attack-stix-data", format: "stix" }
+    - { id: "cve",    path: "data/cve",              format: "json" }
+    - { id: "cwe",    path: "data/cwe",              format: "xml"  }
+
+output:
+  dir: "assessments"
+  formats: ["json", "html", "pdf", "navigator"]
+  package: "zip"

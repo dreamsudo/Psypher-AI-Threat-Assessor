@@ -1,0 +1,4 @@
+{ "id": "syscall_filtering", "tier": "passive",
+  "applies_to": ["host", "inference_endpoint"], "observes": ["seccomp_mode"],
+  "run": { "type": "shell", "cmd": "grep -E '^Seccomp:' /proc/self/status 2>/dev/null || echo unknown", "via": "ssh" },
+  "parse": { "lines": true, "attribute": "seccomp_mode" } }

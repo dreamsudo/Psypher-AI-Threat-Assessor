@@ -1,0 +1,4 @@
+{ "id": "mgmt_exposed", "tier": "active_safe",
+  "applies_to": ["inference_endpoint"], "observes": ["mgmt_api_status"],
+  "run": { "type": "http", "method": "GET", "path_suffix": "/api/ps" },
+  "parse": { "json": "status", "attribute": "mgmt_api_status" } }

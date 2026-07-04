@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://psypherlabs.dev/schema/source.schema.json",
+  "title": "Threat-intel source",
+  "description": "One framework source feeding the knowledge graph.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "path", "format"],
+  "properties": {
+    "id": { "type": "string" },
+    "path": { "type": "string" },
+    "format": { "enum": ["stix", "json", "xml", "ttl", "yaml"] }
+  }
+}

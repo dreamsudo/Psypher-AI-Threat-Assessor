@@ -1,0 +1,77 @@
+{
+  "_comment": "Curated, real CVE records for the ML inference-serving stack. CVE-JSON 5.0 subset. Add records here to extend coverage; the engine never invents CVE identifiers.",
+  "cves": [
+    {
+      "cveMetadata": { "cveId": "CVE-2025-62164" },
+      "containers": {
+        "cna": {
+          "descriptions": [
+            { "lang": "en", "value": "vLLM's Completions API deserialises user-supplied tensor embeddings with torch.load, permitting an out-of-bounds write that can lead to remote code execution on the inference server." }
+          ],
+          "metrics": [
+            { "cvssV3_1": { "baseScore": 8.8, "baseSeverity": "HIGH" } }
+          ],
+          "problemTypes": [
+            { "descriptions": [ { "cweId": "CWE-502", "description": "Deserialization of Untrusted Data" } ] }
+          ],
+          "affected": [
+            { "vendor": "vllm-project", "product": "vllm",
+              "versions": [ { "version": "0.10.2", "lessThanOrEqual": "0.11.0", "status": "affected" } ] }
+          ]
+        }
+      }
+    },
+    {
+      "cveMetadata": { "cveId": "CVE-2025-24357" },
+      "containers": {
+        "cna": {
+          "descriptions": [
+            { "lang": "en", "value": "vLLM loads model weights from a HuggingFace checkpoint using torch.load with weights_only=False, allowing a malicious checkpoint to execute arbitrary code during deserialisation." }
+          ],
+          "metrics": [],
+          "problemTypes": [
+            { "descriptions": [ { "cweId": "CWE-502", "description": "Deserialization of Untrusted Data" } ] }
+          ],
+          "affected": [
+            { "vendor": "vllm-project", "product": "vllm", "status": "affected" }
+          ]
+        }
+      }
+    },
+    {
+      "cveMetadata": { "cveId": "CVE-2025-66448" },
+      "containers": {
+        "cna": {
+          "descriptions": [
+            { "lang": "en", "value": "vLLM resolves model classes from a checkpoint's config.json auto_map field without restriction, enabling code injection and remote code execution when loading an attacker-influenced model." }
+          ],
+          "metrics": [],
+          "problemTypes": [
+            { "descriptions": [ { "cweId": "CWE-94", "description": "Improper Control of Generation of Code (Code Injection)" } ] }
+          ],
+          "affected": [
+            { "vendor": "vllm-project", "product": "vllm",
+              "versions": [ { "version": "0", "lessThan": "0.11.1", "status": "affected" } ] }
+          ]
+        }
+      }
+    },
+    {
+      "cveMetadata": { "cveId": "CVE-2025-47277" },
+      "containers": {
+        "cna": {
+          "descriptions": [
+            { "lang": "en", "value": "vLLM's PyNcclPipe distributed transport deserialises peer messages with pickle.loads while the TCPStore listens on all interfaces, exposing an unauthenticated remote code execution path." }
+          ],
+          "metrics": [],
+          "problemTypes": [
+            { "descriptions": [ { "cweId": "CWE-502", "description": "Deserialization of Untrusted Data" } ] }
+          ],
+          "affected": [
+            { "vendor": "vllm-project", "product": "vllm", "status": "affected" }
+          ]
+        }
+      }
+    }
+  ]
+}
