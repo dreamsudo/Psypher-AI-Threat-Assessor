@@ -27,6 +27,7 @@ probes:
   - {id: mgmt_exposed,         surface: infra,      kind: code,     enabled: true}
   - {id: model_digest,         surface: infra,      kind: code,     enabled: true}
   - {id: pip_freeze,           surface: infra,      kind: code,     enabled: true}
+  - {id: os_packages,          surface: infra,      kind: code,     enabled: true}
   - {id: unauth_inference,     surface: infra,      kind: code,     enabled: true}
   # --- embeddings ----------------------------------------------------------
   - {id: embedding_probe,      surface: embeddings, kind: code,     enabled: true}

@@ -11,3 +11,6 @@ blackbox-out/
 data/atlas-data/
 data/attack-stix-data/
 data/cwe/
+_dumps/
+data/nvd/
+data/distro/

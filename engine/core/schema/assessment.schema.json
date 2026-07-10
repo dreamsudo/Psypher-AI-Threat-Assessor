@@ -52,7 +52,30 @@
           "vulnerabilities": { "type": "array" },
           "mitigations": { "type": "array" },
           "attack_path": { "type": "string" },
-          "evidence": { "type": "object" }
+          "evidence": {
+            "type": "object",
+            "description": "Free-form per-finding detail. Keys vary by analysis branch (CVE / posture / behavioral); all optional, additional keys permitted so new per-phase detail needs no schema change.",
+            "properties": {
+              "match": { "type": "string", "description": "How the finding was matched: a CVE match label, posture, or behavioral/assessed-possible." },
+              "grade": { "type": "string", "description": "Confidence grade: demonstrated or possible." },
+              "verdict": { "enum": ["complied", "partial", "reachable"], "description": "Emitted behavioral or posture verdict, not the internal judge rubric." },
+              "rationale": { "type": "string" },
+              "supporting_grains": { "type": "array", "items": { "type": "string" } },
+              "cwe": { "type": "string" },
+              "method": { "type": "string", "description": "Posture confidence method: observed or inferred." },
+              "access_tier": { "type": "string", "description": "Conservative engagement access floor: black, gray, host, or unknown." },
+              "exchange_id": { "type": "string", "description": "Link into the evidence log (behavioral)." },
+              "target_model": { "type": "string", "description": "Model under test (behavioral)." },
+              "observed_version": { "type": "string" },
+              "version_confirmed": { "type": "boolean" },
+              "exploited": { "type": "boolean", "description": "CVE appears on the CISA KEV list of actively-exploited vulnerabilities." },
+              "priority": { "enum": ["act-now", "high", "scheduled"], "description": "Remediation tier; act-now marks a KEV-exploited CVE." },
+              "kev_date_added": { "type": "string" },
+              "kev_ransomware": { "type": "boolean" },
+              "verify_distro_patch": { "type": "boolean" },
+              "match_basis": { "type": "string" }
+            }
+          }
         }
       }
     },

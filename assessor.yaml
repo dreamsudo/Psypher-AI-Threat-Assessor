@@ -26,6 +26,7 @@ probes:
   allowlist:
     - "api_banner"
     - "pip_freeze"
+    - "os_packages"
     - "detect_virt"
     - "listening_sockets"
     - "embedding_probe"
@@ -48,9 +49,9 @@ intake:
 
 model:
   provider: "anthropic"
-  recon_model: "claude-sonnet-4-6"
-  analysis_model: "claude-sonnet-4-6"
-  review_model: "claude-sonnet-4-6"
+  recon_model: "claude-haiku-4-5-20251001"
+  analysis_model: "claude-haiku-4-5-20251001"
+  review_model: "claude-haiku-4-5-20251001"
   api_key_env: "ANTHROPIC_API_KEY"
 
 graph:
@@ -64,5 +65,5 @@ graph:
 
 output:
   dir: "assessments"
-  formats: ["json", "html", "pdf", "navigator"]
+  formats: ["json", "html", "navigator", "markdown", "web_html"]
   package: "zip"

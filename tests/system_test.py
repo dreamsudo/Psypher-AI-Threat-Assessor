@@ -226,6 +226,152 @@ def check_graph_atlas() -> str:
     return f"{len(tech_ids)} technique nodes; core ATLAS IDs present"
 
 
+def check_kev_priority() -> str:
+    """The KEV overlay flags actively-exploited CVEs and derives a priority tier,
+    and is fail-open: with no KEV data a CVE finding is unaltered except for an
+    explicit exploited=false and a CVSS-band priority. Network/model/key-free."""
+    from types import SimpleNamespace
+    from engine.analysis import analyze
+    from engine.core.models import Severity, Confidence
+
+    def _cand(cve):
+        return SimpleNamespace(
+            component="ollama", cve_id=cve, description="synthetic",
+            cvss=5.0, observed_version="1.2.3", version_confirmed=False,
+            cwes=["CWE-502"], techniques=[], mitigations=[], evidence=None,
+        )
+
+    kev = {"CVE-2021-44228": {"date_added": "2021-12-10", "ransomware": True}}
+
+    # On the KEV list -> exploited, act-now, ransomware metadata carried.
+    hit = analyze._finding_from(
+        _cand("CVE-2021-44228"), severity=Severity.MEDIUM, confidence=Confidence.MEDIUM,
+        title="t", attack_path="p", technique_ids=[], mitigation_ids=[], kev=kev)
+    assert hit.evidence["exploited"] is True, "KEV CVE not flagged exploited"
+    assert hit.evidence["priority"] == "act-now", "KEV CVE not prioritized act-now"
+    assert hit.evidence.get("kev_ransomware") is True, "ransomware flag not carried"
+
+    # Not on the list -> exploited false, priority from CVSS band, no kev_* keys.
+    miss = analyze._finding_from(
+        _cand("CVE-2020-0001"), severity=Severity.CRITICAL, confidence=Confidence.MEDIUM,
+        title="t", attack_path="p", technique_ids=[], mitigation_ids=[], kev=kev)
+    assert miss.evidence["exploited"] is False, "non-KEV CVE wrongly flagged exploited"
+    assert miss.evidence["priority"] == "high", "non-KEV high-CVSS finding mis-tiered"
+    assert "kev_date_added" not in miss.evidence, "kev_* metadata leaked onto non-KEV finding"
+
+    # FAIL-OPEN: no KEV data -> finding stands, exploited defaults false, priority
+    # still derived from the CVSS band; nothing is hidden or altered.
+    off = analyze._finding_from(
+        _cand("CVE-2021-44228"), severity=Severity.LOW, confidence=Confidence.MEDIUM,
+        title="t", attack_path="p", technique_ids=[], mitigation_ids=[], kev={})
+    assert off.evidence["exploited"] is False, "empty KEV store still flagged exploited"
+    assert off.evidence["priority"] == "scheduled", "priority not derived when KEV absent"
+    assert off.vulnerabilities[0].cve == "CVE-2021-44228", "fail-open altered the finding"
+    return "exploited=>act-now; CVSS-band tiers; fail-open (no data => exploited=false, finding intact)"
+
+
+def check_defense_anchor() -> str:
+    """The defense phase attaches graph-grounded Mitigation records to a finding's
+    mitigations and they surface in as_dict() (the JSON every renderer reads), so a
+    named defense actually reaches the report. Ungrounded ids are never introduced,
+    and a technique with no mitigation yields none (no fabrication). Framework-
+    agnostic: ATLAS techniques resolve ATLAS mitigations, ATT&CK resolve ATT&CK.
+    Network/model/key-free."""
+    from types import SimpleNamespace
+    import logging
+    from engine.graph.canonical import Graph, Node, Edge
+    from engine.core.models import Finding, TechniqueRef, Severity, Confidence
+    from engine.analysis.defense import DefensePhase
+
+    g = Graph()
+    g.add_node(Node(id="AML.T0051", type="technique", name="LLM Prompt Injection", framework="ATLAS"))
+    g.add_node(Node(id="AML.M0000", type="mitigation", name="Limit Public Release of Information", framework="ATLAS"))
+    g.add_edge(Edge(src="AML.T0051", dst="AML.M0000", type="mitigated_by"))
+    g.add_node(Node(id="T1611", type="technique", name="Escape to Host", framework="ATT&CK"))
+    g.add_node(Node(id="M1038", type="mitigation", name="Execution Prevention", framework="ATT&CK"))
+    g.add_edge(Edge(src="T1611", dst="M1038", type="mitigated_by"))
+    g.add_node(Node(id="AML.T0068", type="technique", name="LLM Prompt Obfuscation", framework="ATLAS"))
+
+    def _f(fid, fw, tid):
+        return Finding(id=fid, component="c", title="t", severity=Severity.HIGH,
+                       confidence=Confidence.LOW,
+                       techniques=[TechniqueRef(framework=fw, id=tid, name="", validated=True)],
+                       vulnerabilities=[], mitigations=[], attack_path="p", evidence={})
+
+    f_atlas = _f("F-atlas", "ATLAS", "AML.T0051")
+    f_attack = _f("F-attack", "ATT&CK", "T1611")
+    f_none = _f("F-none", "ATLAS", "AML.T0068")
+
+    ctx = SimpleNamespace(artifacts={"graph": g}, findings=[f_atlas, f_attack, f_none],
+                          logger=logging.getLogger("systest-defense"))
+    DefensePhase().run(ctx)
+
+    assert [(m.framework, m.id) for m in f_atlas.mitigations] == [("ATLAS", "AML.M0000")], \
+        "ATLAS finding did not receive its graph mitigation"
+    assert [(m.framework, m.id) for m in f_attack.mitigations] == [("ATT&CK", "M1038")], \
+        "ATT&CK finding did not receive its graph mitigation"
+    d = f_atlas.as_dict()
+    assert {"framework": "ATLAS", "id": "AML.M0000",
+            "text": "Limit Public Release of Information"} in d["mitigations"], \
+        "mitigation absent from as_dict() (would not reach the renderer)"
+    assert f_none.mitigations == [], "a defense was fabricated for a technique with no mitigation"
+    return "grounded Mitigation records attached + visible in as_dict(); none fabricated"
+
+
+def check_d3fend_overlay() -> str:
+    """The D3FEND overlay composes the extracted map into graph mitigation nodes +
+    mitigated_by edges: a mapped ATT&CK technique resolves grounded D3FEND
+    countermeasures (framework D3FEND, deduped across artifacts), and a technique the
+    map does not cover resolves none (graceful degrade, never an error). Uses a
+    synthetic map + hand-built graph so it holds on a fresh clone. Runs the real
+    ingest_d3fend. Network/model/key-free."""
+    import json
+    import logging
+    import os
+    import tempfile
+    from engine.graph.canonical import Graph, Node
+    from engine.graph.d3fend import ingest_d3fend
+
+    iri = "http://d3fend.mitre.org/ontologies/d3fend.owl"
+    synthetic_map = {
+        "attack_to_artifacts": {
+            "T1550.001": [iri + "#ArtA", iri + "#ArtB"],
+            "T1611": [],
+        },
+        "artifact_to_defenses": {
+            iri + "#ArtA": [
+                {"def_tech": iri + "#AuthenticationCacheInvalidation",
+                 "def_tech_label": "Authentication Cache Invalidation"},
+                {"def_tech": iri + "#CredentialTransmissionScoping",
+                 "def_tech_label": "Credential Transmission Scoping"},
+            ],
+            iri + "#ArtB": [
+                {"def_tech": iri + "#AuthenticationCacheInvalidation",
+                 "def_tech_label": "Authentication Cache Invalidation"},
+            ],
+        },
+    }
+
+    fd, path = tempfile.mkstemp(suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(synthetic_map, fh)
+        g = Graph()
+        g.add_node(Node(id="T1550.001", type="technique", name="Application Access Token", framework="ATT&CK"))
+        g.add_node(Node(id="T1611", type="technique", name="Escape to Host", framework="ATT&CK"))
+        ingest_d3fend(g, path, logging.getLogger("systest-d3fend"))
+    finally:
+        os.unlink(path)
+
+    cms = sorted(e.dst for e in g.out_edges("T1550.001", "mitigated_by"))
+    assert cms == ["AuthenticationCacheInvalidation", "CredentialTransmissionScoping"], cms
+    for cm in cms:
+        n = g.get(cm)
+        assert n is not None and n.type == "mitigation" and n.framework == "D3FEND", (cm, n)
+    assert list(g.out_edges("T1611", "mitigated_by")) == [], "T1611 should resolve no D3FEND countermeasure"
+    return "mapped technique -> grounded D3FEND countermeasures (deduped); unmapped (T1611) -> none"
+
+
 def check_evidence_chain() -> str:
     """The evidence log writes a hash-chained exchange+verdict and verifies intact."""
     from engine.core.evidence_log import EvidenceLog, verify_chain
@@ -440,6 +586,37 @@ def check_deterministic_judge() -> str:
     return "compliance and refusal graded correctly (no model required)"
 
 
+def check_relevance_scope() -> str:
+    """Relevance scoping is deterministic and routes out-of-scope packages away.
+
+    Proves the core guarantee WITHOUT the sqlite indexes (absent on a fresh clone):
+    given the shipped role-group pack, an in-scope serving/isolation package
+    (containerd) is selected and an out-of-scope desktop package (firefox-esr) is
+    NOT — so its CVEs would be catalogued, never promoted into the graph. Also
+    checks the pack itself is well-formed and its patterns are boundary-anchored
+    (ray must not match array). Network/model/key-free."""
+    from engine import relevance
+
+    pack = relevance.load()
+    assert pack is not None, "role-group pack packs/relevance/role-groups.yaml did not load"
+    assert pack["role_groups"], "role-group pack has no role_groups"
+    assert "strict" in pack["profiles"], "role-group pack missing the 'strict' profile"
+
+    observed = ["containerd", "firefox-esr", "chromium", "libseccomp2", "openssl", "array"]
+    scoped = relevance.in_scope(observed)
+    assert scoped is not None, "in_scope returned None though the pack is present"
+    assert "containerd" in scoped, "in-scope serving/isolation package was not selected"
+    assert "firefox-esr" not in scoped, "out-of-scope desktop package leaked into scope"
+    assert "chromium" not in scoped, "out-of-scope desktop package leaked into scope"
+    assert "array" not in scoped, "boundary match failed: 'array' matched the 'ray' pattern"
+
+    # Auto-select: observing an isolation/serving package must pick 'strict'.
+    matched = relevance.resolve(sorted(observed), pack)
+    assert relevance.select_profile(matched, pack) == "strict", \
+        "auto-select did not choose 'strict' for an AI-serving surface"
+    return f"{len(scoped)}/{len(observed)} in scope; desktop pkgs -> catalog; profile auto=strict"
+
+
 def check_posture_firewall() -> str:
     """The posture phase admits a real ATT&CK id and rejects a fabricated one."""
     from engine.analysis import posture
@@ -457,6 +634,211 @@ def check_posture_firewall() -> str:
     return "real ATT&CK id admitted, fabricated + weakness IDs rejected"
 
 
+def check_schema_conforms() -> str:
+    """A synthetic assessment.json exercising all three finding branches (CVE,
+    posture, behavioral) with every evidence subfield the phases emit validates
+    cleanly against assessment.schema.json, and deliberately malformed documents
+    (bad severity, an out-of-set verdict, a wrong evidence type, a missing required
+    id) are each rejected. Proves the schema describes real emission and actually
+    constrains. Reuses engine.core.validation. Network/model/key-free."""
+    import copy
+    from engine.core.validation import validate
+
+    good = {
+        "case": {"id": "CASE-SYSTEST", "created": "2026-07-08T00:00:00Z",
+                 "tool_version": "test", "target_name": "synthetic"},
+        "provenance": {"tool_version": "test", "created": "2026-07-08T00:00:00Z",
+                       "source_versions": {}, "graph_hash": "00000000", "probe_log": []},
+        "summary": {"findings_total": 3, "by_severity": {"high": 3},
+                    "frameworks": ["ATLAS", "CVE"]},
+        "components": [], "grains": [],
+        "findings": [
+            {"id": "FND-ollama-CVE-2025-62164", "component": "ollama", "title": "RCE",
+             "severity": "critical", "confidence": "high", "techniques": [],
+             "vulnerabilities": [{"cve": "CVE-2025-62164", "cwe": "CWE-502", "cvss": 9.8,
+                                  "mechanism": "m", "confirmed_by": "p"}],
+             "mitigations": [], "attack_path": "p",
+             "evidence": {"observed_version": "1.2.3", "version_confirmed": True,
+                          "match": "version", "exploited": True, "priority": "act-now",
+                          "kev_date_added": "2025-11-01", "kev_ransomware": True}},
+            {"id": "FND-host-T1611", "component": "host", "title": "escape reachable",
+             "severity": "high", "confidence": "low",
+             "techniques": [{"framework": "ATT&CK", "id": "T1611",
+                             "name": "Escape to Host", "validated": True}],
+             "vulnerabilities": [], "mitigations": [], "attack_path": "p",
+             "evidence": {"grade": "possible", "verdict": "reachable", "cwe": "CWE-250",
+                          "supporting_grains": ["docker_socket"], "rationale": "r",
+                          "match": "posture", "method": "observed", "access_tier": "gray"}},
+            {"id": "FND-model-AML.T0051", "component": "model", "title": "injection complied",
+             "severity": "high", "confidence": "high",
+             "techniques": [{"framework": "ATLAS", "id": "AML.T0051",
+                             "name": "LLM Prompt Injection", "validated": True}],
+             "vulnerabilities": [],
+             "mitigations": [{"framework": "ATLAS", "id": "AML.M0000",
+                              "text": "Limit Public Release of Information"}],
+             "attack_path": "p",
+             "evidence": {"grade": "demonstrated", "verdict": "complied", "rationale": "r",
+                          "supporting_grains": ["redteam::rt_prompt_injection_override"],
+                          "exchange_id": "EXC-1", "target_model": "qwen2.5:0.5b",
+                          "match": "behavioral"}},
+        ],
+        "kill_chains": [],
+    }
+
+    errs = validate(good, "assessment")
+    assert errs == [], f"a valid synthetic assessment was rejected: {errs}"
+
+    bad_sev = copy.deepcopy(good); bad_sev["findings"][0]["severity"] = "urgent"
+    assert validate(bad_sev, "assessment"), "bad severity enum not rejected"
+    bad_verdict = copy.deepcopy(good); bad_verdict["findings"][2]["evidence"]["verdict"] = "refused"
+    assert validate(bad_verdict, "assessment"), "out-of-set verdict (judge-rubric leak) not rejected"
+    bad_type = copy.deepcopy(good); bad_type["findings"][0]["evidence"]["exploited"] = "yes"
+    assert validate(bad_type, "assessment"), "wrong evidence type not rejected"
+    missing = copy.deepcopy(good); del missing["findings"][0]["id"]
+    assert validate(missing, "assessment"), "missing required finding id not rejected"
+
+    return "synthetic CVE+posture+behavioral conforms; bad severity/verdict/type/missing-id rejected"
+
+
+def check_markdown_renders() -> str:
+    """The Markdown renderer turns a synthetic assessment into a brief without
+    error and carries the shared architecture: both surface headers, a known
+    finding id, framework-labeled defenses, the honest 'no countermeasure mapped'
+    degrade, proved/assumed stamps, and act-now-first ordering. Pure function over
+    the assessment dict. Network/model/key-free."""
+    from engine.report.markdown import render_markdown
+
+    assessment = {
+        "case": {"id": "CASE-SYSTEST", "created": "2026-07-08T00:00:00Z",
+                 "tool_version": "test", "target_name": "synthetic"},
+        "provenance": {"tool_version": "test", "created": "2026-07-08T00:00:00Z",
+                       "source_versions": {"atlas": "0.1"}, "graph_hash": "deadbeef",
+                       "probe_log": []},
+        "summary": {"findings_total": 4, "by_severity": {"critical": 1, "high": 2, "medium": 1},
+                    "frameworks": ["ATLAS", "ATT&CK", "CVE"]},
+        "components": [], "grains": [],
+        "findings": [
+            {"id": "FND-ollama-CVE-2025-62164", "component": "ollama", "title": "RCE",
+             "severity": "critical", "confidence": "high", "techniques": [],
+             "vulnerabilities": [{"cve": "CVE-2025-62164", "cwe": "CWE-502", "cvss": 9.8,
+                                  "mechanism": "deserialization", "confirmed_by": "os_packages"}],
+             "mitigations": [], "attack_path": "p",
+             "evidence": {"match": "version", "observed_version": "1.2.3",
+                          "version_confirmed": True, "exploited": True, "priority": "act-now",
+                          "kev_date_added": "2025-11-01", "kev_ransomware": True}},
+            {"id": "FND-host-T1611", "component": "host", "title": "escape reachable",
+             "severity": "high", "confidence": "low",
+             "techniques": [{"framework": "ATT&CK", "id": "T1611",
+                             "name": "Escape to Host", "validated": True}],
+             "vulnerabilities": [], "mitigations": [], "attack_path": "p",
+             "evidence": {"grade": "possible", "verdict": "reachable", "cwe": "CWE-250",
+                          "supporting_grains": ["docker_socket"], "rationale": "r",
+                          "match": "posture", "method": "observed", "access_tier": "gray"}},
+            {"id": "FND-model-AML.T0051", "component": "model", "title": "injection complied",
+             "severity": "high", "confidence": "high",
+             "techniques": [{"framework": "ATLAS", "id": "AML.T0051",
+                             "name": "LLM Prompt Injection", "validated": True}],
+             "vulnerabilities": [],
+             "mitigations": [{"framework": "ATLAS", "id": "AML.M0000",
+                              "text": "Limit Public Release of Information"}],
+             "attack_path": "p",
+             "evidence": {"grade": "demonstrated", "verdict": "complied", "rationale": "r",
+                          "supporting_grains": ["redteam::rt_prompt_injection_override"],
+                          "exchange_id": "EXC-1", "target_model": "qwen2.5:0.5b",
+                          "match": "behavioral"}},
+            {"id": "FND-target-CVE-2013-4392", "component": "target", "title": "backport lead",
+             "severity": "medium", "confidence": "medium", "techniques": [],
+             "vulnerabilities": [{"cve": "CVE-2013-4392", "cwe": "", "cvss": 7.5,
+                                  "mechanism": "m", "confirmed_by": "os_packages"}],
+             "mitigations": [], "attack_path": "p",
+             "evidence": {"match": "possible", "observed_version": "1.2.3",
+                          "version_confirmed": True, "verify_distro_patch": True,
+                          "match_basis": "backport status unverified", "exploited": False,
+                          "priority": "scheduled"}},
+        ],
+        "kill_chains": [],
+    }
+
+    md = render_markdown(assessment, operator="tester", tool_name="Psypher AI Threat Assessor")
+
+    assert "## Infrastructure" in md, "infrastructure surface header missing"
+    assert "## Behavioral" in md, "behavioral surface header missing"
+    assert "FND-model-AML.T0051" in md, "known finding id missing from render"
+    assert "AML.M0000" in md and "**ATLAS**" in md, "framework-labeled defense missing"
+    assert "No MITRE countermeasure mapped" in md, "honest no-defense degrade missing"
+    assert "PROVED" in md and "ASSUMED" in md, "proved/assumed stamps missing"
+    assert md.index("FND-ollama-CVE-2025-62164") < md.index("FND-host-T1611"), "act-now ordering not applied"
+    assert md.index("## Behavioral") < md.index("FND-model-AML.T0051"), "behavioral finding not in Behavioral surface"
+    assert "· PROVED · RCE" in md, "distro-authoritative version-confirmed CVE not stamped PROVED"
+    assert "· ASSUMED · backport lead" in md, "verify_distro_patch backport lead not stamped ASSUMED"
+    return "renders both surfaces; framework-labeled defenses + degrade; proved/assumed; act-now-first"
+
+
+def check_pdf_renders() -> str:
+    """render_pdf produces a non-trivial, valid PDF for a synthetic multi-finding
+    assessment (both surfaces, an act-now KEV CVE, a demonstrated behavioral finding,
+    a finding with no mitigation, and a deliberately overlong unbreakable token)
+    without error, returning True. If fpdf2 is absent the renderer is designed to
+    skip (return False) rather than crash -- that path is reported, not failed.
+    Writes to a temp file, never the repo. Network/model/key-free."""
+    import logging, os, tempfile
+    from pathlib import Path
+    from engine.report.pdf import render_pdf
+
+    findings = [
+        {"id": "FND-c-CVE-2025-1000", "component": "vllm",
+         "title": "RCE via crafted request "
+                  "http://d3fend.mitre.org/ontologies/d3fend.owl#AuthenticationCacheInvalidationLONGUNBROKENTOKENXXXX",
+         "severity": "critical", "confidence": "high", "techniques": [],
+         "vulnerabilities": [{"cve": "CVE-2025-1000", "cwe": "CWE-502", "cvss": 9.8,
+                              "mechanism": "deserialization " * 20, "confirmed_by": "pip_freeze"}],
+         "mitigations": [{"framework": "D3FEND", "id": "InputValidation", "text": "Input Validation"}],
+         "attack_path": "path " * 30,
+         "evidence": {"match": "version", "version_confirmed": True, "exploited": True,
+                      "priority": "act-now", "kev_date_added": "2025-01-01", "kev_ransomware": True}},
+        {"id": "FND-host-T1611", "component": "host", "title": "Container not syscall-confined",
+         "severity": "medium", "confidence": "low",
+         "techniques": [{"framework": "ATT&CK", "id": "T1611", "name": "Escape to Host", "validated": True}],
+         "vulnerabilities": [], "mitigations": [], "attack_path": "inferred",
+         "evidence": {"grade": "possible", "verdict": "reachable", "cwe": "CWE-693",
+                      "supporting_grains": ["docker_socket"], "match": "posture",
+                      "method": "observed", "access_tier": "gray", "rationale": "r " * 40}},
+        {"id": "FND-model-AML.T0051", "component": "model", "title": "Prompt injection overrides system prompt",
+         "severity": "high", "confidence": "high",
+         "techniques": [{"framework": "ATLAS", "id": "AML.T0051", "name": "LLM Prompt Injection", "validated": True}],
+         "vulnerabilities": [],
+         "mitigations": [{"framework": "ATLAS", "id": "AML.M0000", "text": "Limit Public Release of Information"}],
+         "attack_path": "demonstrated",
+         "evidence": {"grade": "demonstrated", "verdict": "complied", "match": "behavioral",
+                      "exchange_id": "EXC-1", "target_model": "qwen2.5:0.5b",
+                      "supporting_grains": ["redteam::rt_prompt_injection_override"], "rationale": "compliance"}},
+    ]
+    assessment = {
+        "case": {"id": "CASE-SYSTEST", "created": "2026-07-08T00:00:00Z",
+                 "tool_version": "test", "target_name": "synthetic"},
+        "provenance": {"tool_version": "test", "created": "2026-07-08T00:00:00Z",
+                       "source_versions": {"atlas": "0.1", "cwe": "4.20"}, "graph_hash": "deadbeef", "probe_log": []},
+        "summary": {"findings_total": len(findings), "by_severity": {"critical": 1, "high": 1, "medium": 1},
+                    "frameworks": ["ATLAS", "ATT&CK", "CVE"]},
+        "components": [], "grains": [], "findings": findings, "kill_chains": [],
+    }
+
+    fd, path = tempfile.mkstemp(suffix=".pdf")
+    os.close(fd)
+    try:
+        ok = render_pdf(assessment, "tester", "Psypher AI Threat Assessor", Path(path), logging.getLogger("systest-pdf"))
+        if not ok:
+            return "fpdf2 unavailable -> renderer skipped cleanly (no crash)"
+        size = os.path.getsize(path)
+        assert size > 3000, f"PDF suspiciously small ({size} bytes)"
+        assert open(path, "rb").read(5) == b"%PDF-", "output is not a valid PDF"
+        pages = open(path, "rb").read().count(b"/Type /Page")
+        assert pages >= 2, f"12-finding synthetic did not paginate (pages={pages}); page-break management failed"
+        return f"multi-page PDF rendered ({size} bytes, {pages} pages, valid header)"
+    finally:
+        os.unlink(path)
+
+
 # =============================================================================
 #  ENTRY POINT
 # =============================================================================
@@ -470,16 +852,22 @@ def main() -> int:
     _run(results, "evidence log hash-chain writes + verifies", check_evidence_chain)
     _run(results, "evidence log tamper-detection fires", check_tamper_detection)
     _run(results, "posture verdict logging + chain intact", check_posture_logging)
+    _run(results, "assessment.json conforms to its schema", check_schema_conforms)
+    _run(results, "markdown report renders (both surfaces + defenses)", check_markdown_renders)
     print()
 
     _p([("── Branch A · infrastructure ", _GREEN), ("─" * 32, _GREEN)])
     _run(results, "knowledge graph loads with MITRE ATLAS techniques", check_graph_atlas)
+    _run(results, "KEV overlay flags exploited CVEs + derives priority", check_kev_priority)
+    _run(results, "defense phase attaches grounded countermeasures", check_defense_anchor)
+    _run(results, "D3FEND overlay grounds countermeasures into the graph", check_d3fend_overlay)
     print()
 
     _p([("── Branch B · the model ", _GREEN), ("─" * 37, _GREEN)])
     _run(results, "policy integrity floor cannot be disabled", check_policy_floor)
     _run(results, "firewall rejects fabricated technique IDs", check_firewall)
     _run(results, "posture firewall rejects fabricated technique IDs", check_posture_firewall)
+    _run(results, "relevance scoping routes out-of-scope packages to catalog", check_relevance_scope)
     _run(results, "probe catalog matches the allowlist", check_probe_catalog_matches_allowlist)
     _run(results, "data-source catalog matches graph.sources", check_source_catalog_matches_graph)
     _run(results, "ATLAS red-team corpus is valid", check_atlas_corpus)

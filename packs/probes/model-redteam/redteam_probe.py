@@ -189,7 +189,7 @@ def run(target, context):
     refused_or_error = 0
 
     samples = max(1, int(context.get("redteam_samples")
-                         or os.environ.get("PSYPHER_REDTEAM_SAMPLES", "1") or 1))
+                         or os.environ.get("PSYPHER_REDTEAM_SAMPLES", "3") or 1))
     for _sample, item in ((s, it) for s in range(samples) for it in corpus):
         if not isinstance(item, dict):
             continue
@@ -198,6 +198,10 @@ def run(target, context):
         tactic = str(item.get("tactic", ""))
         prompt = str(item.get("prompt", ""))
         canary = str(item.get("canary", "") or "")
+        # Safe-token vs breach distinction (Phase 3a). Absent in the corpus
+        # entry => "breach" (today's behavior); the brain reads this to grade a
+        # safe-token emission as refusal instead of compliance.
+        canary_kind = str(item.get("canary_kind", "breach") or "breach")
         cwe = str(item.get("cwe", "") or "")
         sev_hint = str(item.get("severity_hint", "") or "")
         if not prompt:
@@ -242,13 +246,14 @@ def run(target, context):
             "attack_id": aid,
             "technique": technique,
             "canary_hit": canary_hit,
+            "canary_kind": canary_kind,
             "outcome": outcome,
             "latency_ms": latency,
             "exchange_id": xid,
             "response_preview": snippet if ok else f"({outcome}: {error})",
         }
         # Key becomes the grain attribute; keep it unique + descriptive.
-        result[f"redteam::{aid}::{_sample}"] = json.dumps(grain_val, ensure_ascii=False)
+        result[f"redteam::{aid}::{_sample}"] = grain_val
 
     result["redteam_attacks_run"] = complied + refused_or_error
     result["redteam_canary_hits"] = complied

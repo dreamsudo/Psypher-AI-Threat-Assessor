@@ -79,6 +79,12 @@ def load_policy(config, logger=None) -> Policy:
         )
     if not path:
         path = os.environ.get("PSYPHER_POLICY", "packs/policy/strict.yaml")
+    # Resolve a bare profile name (e.g. "strict") to packs/policy/<name>.yaml, so
+    # PSYPHER_POLICY=strict works as documented. A full path or *.yaml is used as-is.
+    if path and not path.endswith((".yaml", ".yml")) and not os.path.isfile(path):
+        _candidate = os.path.join("packs", "policy", "%s.yaml" % path)
+        if os.path.isfile(_candidate):
+            path = _candidate
 
     data = {}
     if path and os.path.isfile(path):

@@ -124,6 +124,37 @@ def main():
     print("\n  --- CWE WEAKNESSES (must be type 'weakness') ---")
     for cid in _POSTURE_CWE:
         check_cwe(cid)
+    print()
+    print("  --- RELEVANCE ROLE-GROUP TECHNIQUES (role -> technique) ---")
+    _rg_path = os.path.join(_ROOT, "packs", "relevance", "role-groups.yaml")
+    _map_path = os.path.join(_ROOT, "packs", "relevance", "attack-artifact-map.json")
+    _valid_iris = set()
+    if os.path.isfile(_map_path):
+        _m = json.load(open(_map_path, encoding="utf-8"))
+        _valid_iris = set(_m.get("artifact_labels", {})) | set(_m.get("artifact_to_defenses", {}))
+    if os.path.isfile(_rg_path):
+        try:
+            import yaml as _yaml
+            _rg = _yaml.safe_load(open(_rg_path, encoding="utf-8")) or {}
+        except Exception as _exc:
+            print("  [warn] could not parse role-groups:", _exc); _rg = {}
+        for _grp in (_rg.get("role_groups") or []):
+            _nm = _grp.get("name", "?")
+            for _tid in (_grp.get("techniques") or []):
+                check_tech(_nm, "-", _tid)
+        print()
+        print("  --- RELEVANCE ROLE-GROUP D3FEND ARTIFACTS (must exist in the map) ---")
+        for _grp in (_rg.get("role_groups") or []):
+            _nm = _grp.get("name", "?")
+            _iri = _grp.get("d3fend_artifact", "")
+            _short = _iri.split("#")[-1] if _iri else "(none)"
+            if _iri and _iri in _valid_iris:
+                _status = "ok"
+            else:
+                _status, problems = "FAIL: artifact IRI not in map", problems + 1
+            print("  [%-28s] %-26s %s" % (_status, _nm, _short))
+    else:
+        print("  [warn] no packs/relevance/role-groups.yaml; relevance grounding skipped")
 
     print("\n" + "=" * 66)
     if problems == 0:

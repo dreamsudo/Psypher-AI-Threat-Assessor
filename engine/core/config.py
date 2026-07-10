@@ -22,7 +22,7 @@ import yaml
 ACCESS_TIERS: frozenset[str] = frozenset({"black", "gray", "host"})
 PROBE_TIERS: frozenset[str] = frozenset({"passive", "active_safe", "intrusive"})
 SOURCE_FORMATS: frozenset[str] = frozenset({"stix", "json", "xml", "ttl", "yaml"})
-OUTPUT_FORMATS: frozenset[str] = frozenset({"json", "html", "pdf", "navigator"})
+OUTPUT_FORMATS: frozenset[str] = frozenset({"json", "html", "navigator", "markdown", "web_html"})
 PACKAGE_FORMATS: frozenset[str] = frozenset({"zip", "none"})
 
 

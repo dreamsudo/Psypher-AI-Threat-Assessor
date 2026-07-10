@@ -46,6 +46,7 @@ class ProbeSpec:
     run: dict[str, Any]
     parse: dict[str, Any]
     source_path: str
+    min_access: str = "black"
 
 
 @dataclass

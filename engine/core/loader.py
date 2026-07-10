@@ -39,6 +39,7 @@ def _load_probe(path: Path, logger: logging.Logger) -> ProbeSpec | None:
         tier=ProbeTier(data["tier"]),
         applies_to=tuple(data.get("applies_to", [])),
         observes=tuple(data.get("observes", [])),
+        min_access=data.get("min_access", "black"),
         run=data["run"],
         parse=data.get("parse", {}),
         source_path=str(path),

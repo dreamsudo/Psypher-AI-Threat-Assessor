@@ -37,7 +37,7 @@ class Candidate:
     cvss: float | None
     cwes: list[str] = field(default_factory=list)
     techniques: list[tuple[str, str]] = field(default_factory=list)   # (id, name)
-    mitigations: list[tuple[str, str]] = field(default_factory=list)  # (id, text)
+    mitigations: list[tuple[str, str, str]] = field(default_factory=list)  # (id, text, framework)
 
 
 def _normalize(name: str) -> str:
@@ -87,12 +87,33 @@ def _in_range(observed: str | None, affected: dict[str, Any]) -> tuple[bool, boo
 
 
 def _extract_version(product: str, evidence: list[Evidence]) -> str | None:
-    """Recover a product's exact version from a probe's raw evidence."""
-    pattern = re.compile(rf"(?mi)^\s*{re.escape(product)}\s*[=]{{1,2}}\s*([\w.\-]+)")
+    """Recover a product's exact version from a probe's raw evidence.
+
+    Deterministic and model-free. Each pattern is anchored on the product name
+    so a version can never be bound to the wrong product. Tried strictest first:
+      1. pip freeze / name==version      e.g.  vllm==0.10.2
+      2. dpkg -l status line             e.g.  ii  openssh-server  1:9.6p1-3ubuntu13.5  amd64
+      3. rpm -qa name-version-release    e.g.  openssh-9.6p1-1.fc40.x86_64
+      4. product-adjacent version token  e.g.  Docker version 24.0.7 / OpenSSH_9.6p1
+    Product-agnostic sources that do not name the product (a bare
+    {"version": "..."} endpoint reply, or `uname -r`) are intentionally not read
+    here: binding those to a product is a grain-layer step, handled where the
+    probe is authored.
+    """
+    esc = re.escape(product)
+    ver = r"\d+(?:\.\d+)+[\w.\-]*"
+    patterns = (
+        re.compile(rf"(?mi)^\s*{esc}\s*={{1,2}}\s*([\w.\-]+)"),
+        re.compile(rf"(?mi)^[a-z]{{1,3}}\s+{esc}(?::[a-z0-9]+)?\s+(?:\d+:)?(\S+)"),
+        re.compile(rf"(?mi)^{esc}-([0-9][^-\s]*)-[^-\s]+"),
+        re.compile(rf"(?i)(?<![A-Za-z0-9]){esc}(?![A-Za-z0-9])[^0-9]{{0,14}}?({ver})"),
+    )
     for item in evidence:
-        match = pattern.search(item.raw or "")
-        if match:
-            return match.group(1)
+        raw = item.raw or ""
+        for pattern in patterns:
+            match = pattern.search(raw)
+            if match:
+                return match.group(1)
     return None
 
 
@@ -156,6 +177,19 @@ def match_candidates(grains: list[Grain], graph: Graph, logger: logging.Logger) 
     return candidates
 
 
+def mitigations_for_technique(graph, technique_id) -> list[tuple[str, str, str]]:
+    """The graph-grounded mitigations for a technique, as (id, name, framework)
+    tuples read from its ``mitigated_by`` edges. One implementation, shared by
+    candidate building here and the defense phase, so the walk lives in exactly
+    one place. Only mitigations that resolve to a real graph node are returned."""
+    out: dict[str, tuple[str, str]] = {}
+    for edge in graph.out_edges(technique_id, "mitigated_by"):
+        node = graph.get(edge.dst)
+        if node is not None:
+            out[node.id] = (node.name, node.framework)
+    return sorted((mid, nm, fw) for mid, (nm, fw) in out.items())
+
+
 def _build_candidate(cve_id: str, component: str, observed: str | None, confirmed: bool,
                      evidence: Evidence | None, graph: Graph) -> Candidate:
     node = graph.get(cve_id)
@@ -167,14 +201,13 @@ def _build_candidate(cve_id: str, component: str, observed: str | None, confirme
         if technique is None:
             continue
         techniques.append((technique.id, technique.name))
-        for mit_edge in graph.out_edges(technique.id, "mitigated_by"):
-            mitigation = graph.get(mit_edge.dst)
-            if mitigation is not None:
-                mitigations[mitigation.id] = mitigation.name
+        for mid, name, fw in mitigations_for_technique(graph, technique.id):
+            mitigations[mid] = (name, fw)
     return Candidate(
         cve_id=cve_id, component=component, observed_version=observed,
         version_confirmed=confirmed, evidence=evidence,
         description=attrs.get("description", ""), cvss=attrs.get("cvss"),
         cwes=list(attrs.get("cwes", [])),
-        techniques=techniques, mitigations=sorted(mitigations.items()),
+        techniques=techniques,
+        mitigations=sorted((mid, nm, fw) for mid, (nm, fw) in mitigations.items()),
     )

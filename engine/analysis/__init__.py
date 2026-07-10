@@ -27,3 +27,14 @@ try:
 except Exception as _posture_exc:  # pragma: no cover
     import logging as _logging
     _logging.getLogger(__name__).warning("posture phase not registered: %s", _posture_exc)
+
+# [PsypherLabs] Defense-anchor phase (order 38, after posture, before report).
+# Additive and deterministic; names the defense for each finding (ATLAS
+# mitigations now, D3FEND countermeasures next). Attaches only graph-grounded ids.
+try:
+    from .defense import DefensePhase as _DefensePhase
+    from ..core.contracts import register_phase as _register_defense
+    _register_defense(_DefensePhase())
+except Exception as _defense_exc:  # pragma: no cover
+    import logging as _logging
+    _logging.getLogger(__name__).warning("defense phase not registered: %s", _defense_exc)

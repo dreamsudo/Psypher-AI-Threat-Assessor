@@ -56,6 +56,28 @@ class Evidence:
         return asdict(self)
 
 
+def _cap_grain_evidence(item) -> dict:
+    """Serialize one Evidence with its raw bounded for the written record."""
+    d = item.as_dict()
+    d["raw"] = _cap_raw(d.get("raw", ""))
+    return d
+
+
+def _cap_raw(text: str) -> str:
+    """Bound a written raw payload so a large shared probe dump is not
+    duplicated across every grain in assessment.json. The full raw stays in the
+    live Evidence object (analysis reads it in-memory); only the serialized copy
+    is sampled, and the truncation is disclosed rather than silent."""
+    try:
+        from ..discovery.harness import _RAW_CAP as _CAP
+    except Exception:
+        _CAP = 8000
+    s = text or ""
+    if len(s) <= _CAP:
+        return s
+    return s[:_CAP] + ("...[+%d more bytes, full raw retained in the evidence log]" % (len(s) - _CAP))
+
+
 @dataclass
 class Grain:
     """One individually-assessable fact about a target component.
@@ -76,7 +98,7 @@ class Grain:
             "attribute": self.attribute,
             "value": self.value,
             "confidence": self.confidence.value,
-            "evidence": [item.as_dict() for item in self.evidence],
+            "evidence": [_cap_grain_evidence(item) for item in self.evidence],
         }
 
 

@@ -216,9 +216,41 @@ def run_sources(fails):
     print(f"  [{status}] catalog enabled-set == graph.sources")
 
 
+def run_schema(case, fails):
+    """Validate a completed run's assessment.json against assessment.schema.json.
+
+    The structural counterpart to run_audit's grounding pass: audit proves every
+    id is real and the evidence chain is intact; this proves the document conforms
+    to the schema every renderer consumes (required blocks present, evidence
+    subfields correctly typed, verdict and priority within their emitted sets).
+    Reuses the sealed engine.core.validation.validate; adds no new dependency.
+    """
+    from engine.core.validation import validate
+    if not case:
+        cases = sorted(glob.glob(os.path.join(_ROOT, "assessments", "CASE-*/")), key=os.path.getmtime)
+        if not cases:
+            print("  [FAIL] no case directories under assessments/"); sys.exit(2)
+        case = cases[-1]
+    jf = os.path.join(case, "assessment.json")
+    if not os.path.isfile(jf):
+        print(f"  [FAIL] no assessment.json in {case}"); sys.exit(2)
+    instance = json.load(open(jf, encoding="utf-8"))
+    print("")
+    print(f"  validating: {jf}")
+    print("  --- SCHEMA: assessment.json vs assessment.schema.json ---")
+    errors = validate(instance, "assessment")
+    if errors:
+        for e in errors:
+            fails.append(f"schema: {e}")
+            print(f"  [FAIL] {e}")
+    else:
+        n = len(instance.get("findings", []))
+        print(f"  [ok] document conforms ({n} findings)")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Psypher agnostic mechanical verifier")
-    ap.add_argument("--mode", choices=("static", "audit", "probes", "sources"), default="audit")
+    ap.add_argument("--mode", choices=("static", "audit", "probes", "sources", "schema"), default="audit")
     ap.add_argument("--case", default=None, help="case dir (default: newest)")
     args = ap.parse_args()
 
@@ -235,6 +267,8 @@ def main():
         run_probes(fails)
     elif args.mode == "sources":
         run_sources(fails)
+    elif args.mode == "schema":
+        run_schema(args.case, fails)
     else:
         run_audit(get, args.case, fails)
 

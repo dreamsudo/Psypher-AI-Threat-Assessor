@@ -44,6 +44,8 @@ DEFAULT_TIMEOUT: int = 30
 _RAW_CAP: int = 8000
 # Opt-in to skip TLS verification for HTTP probes against self-signed infra.
 _INSECURE_TLS_ENV: str = "PSYPHER_INSECURE_TLS"
+# Optional runtime override of the raw-output cap for any probe.
+_RAW_CAP_ENV: str = "PSYPHER_RAW_CAP"
 
 
 def _utc() -> str:
@@ -125,6 +127,16 @@ class Harness:
         self.timeout = DEFAULT_TIMEOUT
         self._insecure_tls = _truthy(os.environ.get(_INSECURE_TLS_ENV))
 
+    def _cap(self, probe: ProbeSpec) -> int:
+        """Resolve the raw-output cap: env override, else per-probe raw_cap, else default."""
+        override = os.environ.get(_RAW_CAP_ENV)
+        if override is not None:
+            try:
+                return max(0, int(override))
+            except ValueError:
+                self.logger.warning("ignoring invalid %s=%r; using default", _RAW_CAP_ENV, override)
+        return int(probe.run.get("raw_cap", _RAW_CAP))
+
     # -- public ----------------------------------------------------------------
 
     def execute(self, probe: ProbeSpec, asset: Asset, ctx: RunContext) -> ProbeResult:
@@ -188,7 +200,7 @@ class Harness:
         proc = subprocess.run(argv, capture_output=True, text=True, timeout=self.timeout, check=False)
         raw = (proc.stdout or "") + (proc.stderr or "")
         ok = proc.returncode == 0
-        return ProbeResult(probe.id, probe.tier.value, target, ok=ok, raw=raw[:_RAW_CAP],
+        return ProbeResult(probe.id, probe.tier.value, target, ok=ok, raw=raw[:self._cap(probe)],
                            error="" if ok else f"exit {proc.returncode}")
 
     def _run_script(self, probe: ProbeSpec, asset: Asset, target: str) -> ProbeResult:
@@ -213,7 +225,7 @@ class Harness:
         value = fn(target_view, context_view)
         return ProbeResult(
             probe.id, probe.tier.value, target, ok=value is not None, data=value,
-            raw=json.dumps(value, default=str)[:_RAW_CAP] if value is not None else "",
+            raw=json.dumps(value, default=str)[:self._cap(probe)] if value is not None else "",
         )
 
     def _run_http(self, probe: ProbeSpec, asset: Asset, target: str) -> ProbeResult:
@@ -249,7 +261,7 @@ class Harness:
             parsed = None
         data = {"status": status, "headers": resp_headers, "json": parsed}
         ok = 200 <= status < 400
-        return ProbeResult(probe.id, probe.tier.value, target, ok=ok, raw=body[:_RAW_CAP], data=data,
+        return ProbeResult(probe.id, probe.tier.value, target, ok=ok, raw=body[:self._cap(probe)], data=data,
                            error="" if ok else f"HTTP {status}")
 
     @staticmethod

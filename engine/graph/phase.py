@@ -22,6 +22,8 @@ from .cwe import ingest_cwe
 from .enrich import EnrichUnavailable, GraphEnricher
 from .stix import ingest_stix
 from .store import GraphStore
+from .promote import promote
+from .d3fend import ingest_d3fend
 
 
 class GraphPhase(Phase):
@@ -49,6 +51,21 @@ class GraphPhase(Phase):
                             sum(v for k, v in counts.items() if k != "edges"),
                             counts["edges"], metadata["hash"])
 
+        # Part C: matched-subset CVE promotion OVERLAY. Runs on the finished
+        # graph regardless of whether it was built or loaded-from-cache, so it
+        # is always applied yet never enters the fingerprint-keyed cache.
+        # Observed-only; deterministic; promoted nodes are real so the closing
+        # firewall re-checks them unchanged. No-ops if the NVD index is absent.
+        promote(graph, ctx.grains,
+                _resolve(ctx.config, "data/distro/debian.sqlite"),
+                _resolve(ctx.config, "data/nvd/index.sqlite"), ctx.logger)
+        # D3FEND defense overlay: same overlay pattern as promotion above --
+        # composes the extracted D3FEND map into mitigation nodes + mitigated_by
+        # edges on the finished graph, never cached, before the closing firewall.
+        # The defense phase then resolves them via the same mitigated_by walk.
+        ingest_d3fend(graph,
+                      _resolve(ctx.config, "packs/relevance/attack-artifact-map.json"),
+                      ctx.logger)
         ctx.artifacts["graph"] = graph
         ctx.artifacts["graph_hash"] = graph.hash()
 

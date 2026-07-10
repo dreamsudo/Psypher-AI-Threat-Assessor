@@ -26,6 +26,10 @@
       "items": { "type": "string" },
       "description": "Grain attributes this probe can establish."
     },
+    "min_access": {
+      "enum": ["black", "gray", "host"],
+      "description": "Minimum access tier at which this probe applies (default black)."
+    },
     "run": {
       "type": "object",
       "required": ["type"],

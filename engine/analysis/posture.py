@@ -57,14 +57,10 @@ def _technique_ids(graph) -> set:
 
 
 def _node_name(graph, node_id: str) -> str:
-    nodes = getattr(graph, "nodes", None)
     try:
-        if hasattr(nodes, "get"):
-            node = nodes.get(node_id)
-            if isinstance(node, dict):
-                return node.get("name", node_id)
-            if node is not None:
-                return getattr(node, "name", node_id)
+        node = graph.get(node_id)
+        if node is not None:
+            return getattr(node, "name", None) or node_id
     except Exception:
         pass
     return node_id
@@ -93,15 +89,50 @@ def _cap_sys_admin(cap_eff_value: str) -> bool:
         return False
 
 
+def _engagement_method(config):
+    """Return (method, access_tier) for this engagement's posture findings.
+
+    'observed' when we had host/SSH access to confirm the fact on the box (gray
+    or host tier — the posture probes read /proc, sockets and caps directly over
+    SSH); 'inferred' at black box (seen from outside, not host-confirmed).
+    access_tier is the conservative FLOOR across in-scope assets: if any asset is
+    black box, the run's confirmable floor is black. Any failure defaults to
+    ('inferred', 'unknown') — never over-claim.
+    """
+    rank = {"black": 0, "gray": 1, "host": 2}
+    try:
+        assets = getattr(getattr(config, "scope", None), "in_scope", []) or []
+        tiers = [str(getattr(a, "access", "black")).lower() for a in assets]
+        tiers = [t for t in tiers if t in rank]
+        if not tiers:
+            return ("inferred", "unknown")
+        floor = min(tiers, key=lambda t: rank[t])
+        return ("observed" if rank[floor] >= rank["gray"] else "inferred", floor)
+    except Exception:
+        return ("inferred", "unknown")
+
+
+def _framework_for(technique_id: str) -> str:
+    """Derive the framework from the id (mirrors defense.py::_framework_for).
+    Posture emits ATLAS (AML.*) and ATT&CK ids; label each correctly instead of
+    hardcoding ATT&CK. D3FEND/EMB3D branches kept for parity with defense.py."""
+    tid = technique_id or ""
+    if tid.startswith("AML."):
+        return "ATLAS"
+    if tid.startswith("D3-") or "d3fend" in tid.lower():
+        return "D3FEND"
+    return "ATT&CK"
+
+
 def _make_finding(*, component, technique_id, technique_name, severity, confidence,
-                  title, attack_path, cwe, supporting, rationale) -> Finding:
+                  title, attack_path, cwe, supporting, rationale, method, access_tier) -> Finding:
     return Finding(
         id=f"FND-{component}-posture-{technique_id}".replace(" ", ""),
         component=component,
         title=title,
         severity=Severity(severity),
         confidence=Confidence(confidence),
-        techniques=[TechniqueRef(framework="ATT&CK", id=technique_id,
+        techniques=[TechniqueRef(framework=_framework_for(technique_id), id=technique_id,
                                  name=technique_name, validated=True)],
         vulnerabilities=[],
         mitigations=[],
@@ -113,6 +144,8 @@ def _make_finding(*, component, technique_id, technique_name, severity, confiden
             "supporting_grains": supporting,
             "rationale": rationale,
             "match": "posture",
+            "method": method,
+            "access_tier": access_tier,
         },
     )
 
@@ -152,6 +185,7 @@ class PosturePhase(Phase):
         graph = _graph(ctx)
         valid = _technique_ids(graph)
         grains = _grains_by_attr(ctx)
+        method, access_tier = _engagement_method(ctx.config)
         produced = 0
         fired: set = set()
 
@@ -166,7 +200,7 @@ class PosturePhase(Phase):
             ctx.findings.append(_make_finding(
                 component=component, technique_id=technique,
                 technique_name=_node_name(graph, technique),
-                severity=severity, confidence="low",
+                severity=severity, confidence="low", method=method, access_tier=access_tier,
                 title=f"Host isolation weakness - {_node_name(graph, technique)} reachable",
                 attack_path=(f"Observed '{attr}'={value} on {component}. {why} "
                              f"This makes ATT&CK {technique} reachable (assessed, not proven)."),

@@ -28,14 +28,17 @@ from ..core.prompts import get_prompt
 
 
 def select_analyzer(config: Config, logger: logging.Logger) -> "Analyzer":
-    """Return the Claude analyzer if usable, else the heuristic analyzer."""
-    if config.model.provider == "anthropic" and os.environ.get(config.model.api_key_env):
-        try:
-            return ClaudeAnalyzer(config, logger)
-        except AnalyzerUnavailable as exc:
-            logger.warning("Claude analysis unavailable (%s); using heuristic analyzer", exc)
-    else:
-        logger.info("no model credentials; using heuristic analyzer")
+    """Return the deterministic heuristic analyzer for the CVE branch, always.
+
+    Branch A (CVE/infrastructure) produces grounded, version-matched FACTS that
+    must never be dropped by a model's applicability judgement. The heuristic
+    analyzer keeps every such finding (with CWE/KEV) regardless of the key, so
+    the ~21 deterministic CVE findings can no longer collapse to zero on a keyed
+    run. Claude's CVE-applicability reasoning moves to Branch B (behavioral) and
+    enrichment, where it is additive and cannot delete a fact. ClaudeAnalyzer is
+    retained (unused by this path) for reference and possible future use.
+    """
+    logger.info("CVE branch: using deterministic heuristic analyzer (Branch A is model-free)")
     return HeuristicAnalyzer(logger)
 
 
@@ -71,9 +74,53 @@ def _severity_from_cvss(cvss: float | None) -> Severity:
     return Severity.INFO
 
 
+def _load_kev() -> dict:
+    """Load the CISA KEV store as a flat {CVE-ID: {...}} map. Fail-open: any
+    problem (missing file, bad JSON) returns {} so analysis behaves byte-for-byte
+    as before. Reads the committed data/kev/kev.json snapshot; no network.
+    Ranking input only, never a filter."""
+    try:
+        from pathlib import Path as _Path
+        p = _Path(__file__).resolve().parents[2] / "data" / "kev" / "kev.json"
+        if not p.is_file():
+            return {}
+        store = json.loads(p.read_text(encoding="utf-8"))
+        cves = store.get("cves", store) if isinstance(store, dict) else {}
+        return cves if isinstance(cves, dict) else {}
+    except Exception:
+        return {}
+
+
+def _kev_priority(severity: Severity, exploited: bool) -> str:
+    """Remediation tier. Product decision (not test-derived beyond the two pinned
+    points): a KEV-exploited CVE is act-now regardless of severity; else Critical
+    or High severity is high; else scheduled. Constrained to the schema's three-
+    value priority enum [act-now, high, scheduled]."""
+    if exploited:
+        return "act-now"
+    if severity in (Severity.CRITICAL, Severity.HIGH):
+        return "high"
+    return "scheduled"
+
+
+def _with_kev(evidence: dict, cve_id: str, severity: Severity, kev: dict | None) -> dict:
+    """Stamp KEV fields onto a finding's evidence dict (deterministic, fail-open).
+    On the KEV list: exploited=True + priority + kev_ransomware + kev_date_added.
+    Off the list, or no/None store: exploited=False + band priority, no kev_* keys."""
+    store = kev or {}
+    entry = store.get(cve_id) if isinstance(store, dict) else None
+    exploited = bool(entry)
+    evidence["exploited"] = exploited
+    evidence["priority"] = _kev_priority(severity, exploited)
+    if exploited and isinstance(entry, dict):
+        evidence["kev_ransomware"] = bool(entry.get("ransomware"))
+        evidence["kev_date_added"] = entry.get("date_added", "")
+    return evidence
+
+
 def _finding_from(candidate: Candidate, *, severity: Severity, confidence: Confidence,
                   title: str, attack_path: str, technique_ids: list[str],
-                  mitigation_ids: list[str]) -> Finding:
+                  mitigation_ids: list[str], kev: dict | None = None) -> Finding:
     """Assemble a Finding from a judged candidate, keeping only offered ids."""
     offered_techniques = {tid: name for tid, name in candidate.techniques}
     offered_mitigations = {mid: text for mid, text in candidate.mitigations}
@@ -97,11 +144,11 @@ def _finding_from(candidate: Candidate, *, severity: Severity, confidence: Confi
         vulnerabilities=[Vulnerability(cve=candidate.cve_id, cwe=cwe, cvss=candidate.cvss,
                                        mechanism=candidate.description, confirmed_by=confirmed_by)],
         mitigations=mitigations, attack_path=attack_path,
-        evidence={
+        evidence=_with_kev({
             "observed_version": candidate.observed_version,
             "version_confirmed": candidate.version_confirmed,
             "match": "version-confirmed" if candidate.version_confirmed else "product-level",
-        },
+        }, candidate.cve_id, severity, kev),
     )
 
 
@@ -122,6 +169,7 @@ class HeuristicAnalyzer(Analyzer):
     def judge(self, component: str, candidates: list[Candidate],
               context: list[tuple[str, Any]]) -> list[Finding]:
         findings: list[Finding] = []
+        kev = _load_kev()
         for candidate in candidates:
             lead = candidate.techniques[0][1] if candidate.techniques else "adversary techniques"
             version = candidate.observed_version or "an affected version"
@@ -138,6 +186,7 @@ class HeuristicAnalyzer(Analyzer):
                 attack_path=attack_path,
                 technique_ids=[tid for tid, _ in candidate.techniques],
                 mitigation_ids=[mid for mid, _ in candidate.mitigations],
+                kev=kev,
             ))
         return findings
 
@@ -202,10 +251,21 @@ class ClaudeAnalyzer(Analyzer):
                 self.logger.warning("analysis referenced unknown CVE '%s' for %s; rejected",
                                     cve_id, component)
                 continue
-            if not decision.get("applicable", False):
-                self.logger.info("analysis judged %s not applicable to %s", cve_id, component)
-                continue
             candidate = by_id[cve_id]
+            # Honesty layer (matches _classify_match / _finding_from): a
+            # version-confirmed candidate is a real lead and is NEVER dropped on the
+            # judge's applicability call alone -- _finding_from labels it
+            # ("possible / verify_distro_patch", HIGH->MEDIUM) so the operator and
+            # Claude know exactly what to verify. Only a candidate that is BOTH
+            # unconfirmed AND judged not-applicable is dropped (nothing grounded to
+            # keep). Claude's applicability judgement is preserved as a signal.
+            if not decision.get("applicable", False) and not candidate.version_confirmed:
+                self.logger.info("analysis judged %s not applicable to %s and version "
+                                 "unconfirmed; dropped", cve_id, component)
+                continue
+            if not decision.get("applicable", False):
+                self.logger.info("analysis judged %s not applicable but version confirmed; "
+                                 "kept as a lead", cve_id)
             offered_t = {tid for tid, _ in candidate.techniques}
             offered_m = {mid for mid, _ in candidate.mitigations}
             technique_ids = [t for t in decision.get("technique_ids", []) if t in offered_t]
@@ -249,7 +309,7 @@ class ClaudeAnalyzer(Analyzer):
         )
         try:
             response = self._client.messages.create(
-                model=self._model, max_tokens=2048, system=_ASSESS_SYSTEM,
+                model=self._model, max_tokens=1500, system=_ASSESS_SYSTEM,
                 messages=[{"role": "user", "content": prompt}],
                 tools=[_ASSESS_TOOL],
                 tool_choice={"type": "tool", "name": "assess_candidates"},
