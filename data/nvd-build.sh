@@ -36,6 +36,6 @@ for y in $(seq "$FIRST" "$LAST"); do
 done
 
 echo "[index] building SQLite product index over all verified feeds"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(dirname "$(dirname "$DIR")")"
 "$ROOT/.venv/bin/python" "$ROOT/data/nvd_index.py" "$DIR"
 echo "[done] NVD store + index ready under $DIR"
