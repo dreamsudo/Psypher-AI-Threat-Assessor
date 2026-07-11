@@ -123,7 +123,7 @@ def _finding_from(candidate: Candidate, *, severity: Severity, confidence: Confi
                   mitigation_ids: list[str], kev: dict | None = None) -> Finding:
     """Assemble a Finding from a judged candidate, keeping only offered ids."""
     offered_techniques = {tid: name for tid, name in candidate.techniques}
-    offered_mitigations = {mid: text for mid, text in candidate.mitigations}
+    offered_mitigations = {mid: (text, fw) for mid, text, fw in candidate.mitigations}
 
     techniques = [
         TechniqueRef(framework=("ATLAS" if tid.startswith("AML") else "ATT&CK"),
@@ -131,8 +131,8 @@ def _finding_from(candidate: Candidate, *, severity: Severity, confidence: Confi
         for tid in technique_ids if tid in offered_techniques
     ]
     mitigations = [
-        Mitigation(framework=("ATLAS" if mid.startswith("AML") else "ATT&CK"),
-                   id=mid, text=offered_mitigations[mid])
+        Mitigation(framework=offered_mitigations[mid][1],
+                   id=mid, text=offered_mitigations[mid][0])
         for mid in mitigation_ids if mid in offered_mitigations
     ]
     cwe = candidate.cwes[0] if candidate.cwes else ""
@@ -185,7 +185,7 @@ class HeuristicAnalyzer(Analyzer):
                 title=f"{candidate.cve_id} affects {component}",
                 attack_path=attack_path,
                 technique_ids=[tid for tid, _ in candidate.techniques],
-                mitigation_ids=[mid for mid, _ in candidate.mitigations],
+                mitigation_ids=[mid for mid, _, _ in candidate.mitigations],
                 kev=kev,
             ))
         return findings
@@ -267,7 +267,7 @@ class ClaudeAnalyzer(Analyzer):
                 self.logger.info("analysis judged %s not applicable but version confirmed; "
                                  "kept as a lead", cve_id)
             offered_t = {tid for tid, _ in candidate.techniques}
-            offered_m = {mid for mid, _ in candidate.mitigations}
+            offered_m = {mid for mid, _, _ in candidate.mitigations}
             technique_ids = [t for t in decision.get("technique_ids", []) if t in offered_t]
             for rejected in set(decision.get("technique_ids", [])) - offered_t:
                 self.logger.warning("analysis proposed un-offered technique '%s' for %s; rejected",
@@ -280,7 +280,7 @@ class ClaudeAnalyzer(Analyzer):
                 title=str(decision.get("title") or f"{cve_id} affects {component}"),
                 attack_path=str(decision.get("attack_path", "")),
                 technique_ids=technique_ids or [tid for tid, _ in candidate.techniques],
-                mitigation_ids=mitigation_ids or [mid for mid, _ in candidate.mitigations],
+                mitigation_ids=mitigation_ids or [mid for mid, _, _ in candidate.mitigations],
             ))
         return findings
 
@@ -298,7 +298,7 @@ class ClaudeAnalyzer(Analyzer):
                     "version_confirmed": c.version_confirmed,
                     "weaknesses": c.cwes,
                     "offered_techniques": [{"id": tid, "name": name} for tid, name in c.techniques],
-                    "offered_mitigations": [{"id": mid, "name": text} for mid, text in c.mitigations],
+                    "offered_mitigations": [{"id": mid, "name": text} for mid, text, _ in c.mitigations],
                 }
                 for c in candidates
             ],

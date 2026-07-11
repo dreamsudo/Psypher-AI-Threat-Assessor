@@ -92,10 +92,10 @@ def run_static(get, fails):
         if isinstance(row, dict) and row.get("technique"):
             _check_tech(get, row["technique"], row.get("id", "?"), fails)
     print("\n  --- STATIC: POSTURE TECHNIQUES ---")
-    for tid in ("T1611", "T1046", "AML.T0040", "AML.T0010"):
+    for tid in ("T1611", "T1046", "AML.T0040", "AML.T0010", "AML.T0010.003"):
         _check_tech(get, tid, "posture-rule", fails)
     print("\n  --- STATIC: CWE WEAKNESSES ---")
-    for cid in ("CWE-250", "CWE-306", "CWE-353", "CWE-693"):
+    for cid in ("CWE-250", "CWE-306", "CWE-353", "CWE-693", "CWE-502"):
         _check_cwe(get, cid, fails)
 
 

@@ -250,6 +250,13 @@ class PosturePhase(Phase):
                  f"The served model (digest {str(digest)[:12]}...) is drawn from an "
                  "unpinned source with no integrity check enforced against a known-good digest.")
 
+        # --- model artifact serialization safety (supply chain: model) ------
+        if str(grains.get("model_serialization_verdict", ("", ""))[0]).lower() == "dangerous":
+            emit("model_serialization_verdict", "AML.T0010.003", "critical", "CWE-502",
+                 "The served model artifact is a pickle-derived format whose opcode "
+                 "stream references dangerous globals; loading it executes arbitrary "
+                 "code (deserialization RCE) before inference begins.")
+
         logger.info("posture: produced %d finding(s)", produced)
 
 

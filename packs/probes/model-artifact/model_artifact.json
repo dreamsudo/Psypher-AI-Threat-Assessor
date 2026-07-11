@@ -1,0 +1,8 @@
+{
+  "id": "model_artifact_scan",
+  "tier": "active_safe",
+  "applies_to": ["inference_endpoint"],
+  "observes": ["model_serialization_scanned", "model_serialization_format", "model_serialization_verdict", "model_serialization_unsafe", "model_serialization_path"],
+  "run": { "type": "script", "path": "model_artifact.py", "entry": "run" },
+  "parse": { "from": "return_value" }
+}

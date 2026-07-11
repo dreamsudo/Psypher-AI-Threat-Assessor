@@ -586,6 +586,99 @@ def check_deterministic_judge() -> str:
     return "compliance and refusal graded correctly (no model required)"
 
 
+def check_cve_mitigation_arity() -> str:
+    """Branch A analyzer accepts 3-tuple mitigations and carries the REAL
+    framework. Regression guard for the match.py/analyze.py mitigation-tuple
+    contract: Candidate.mitigations is (id, name, framework); _finding_from
+    must unpack all three and cite the mitigation's real framework (read off
+    the graph node), never a guess from the id prefix. Fully synthetic — no
+    graph, model, key, or network. On the pre-fix code this raises ValueError
+    from the 2-tuple unpack; even absent the crash, the old prefix rule would
+    mislabel a D3FEND countermeasure as 'ATT&CK'."""
+    from engine.analysis.match import Candidate
+    from engine.analysis.analyze import HeuristicAnalyzer
+
+    class _Log:
+        def info(self, *a, **k): pass
+        def warning(self, *a, **k): pass
+        def error(self, *a, **k): pass
+        def debug(self, *a, **k): pass
+
+    candidate = Candidate(
+        cve_id="CVE-0000-0001",
+        component="synthetic-component",
+        observed_version="1.0.0",
+        version_confirmed=True,
+        evidence=None,
+        description="synthetic candidate exercising the mitigation arity contract",
+        cvss=7.5,
+        cwes=["CWE-79"],
+        techniques=[("AML.T0051", "synthetic technique")],
+        mitigations=[("D3FEND-D3-XYZ", "a synthetic countermeasure", "D3FEND")],
+    )
+    findings = HeuristicAnalyzer(_Log()).judge("synthetic-component", [candidate], [])
+    assert len(findings) == 1, f"expected one finding, got {len(findings)}"
+    mits = findings[0].mitigations
+    assert mits, "finding carried no mitigation (3-tuple mitigation dropped?)"
+    m = mits[0]
+    assert m.id == "D3FEND-D3-XYZ", f"mitigation id corrupted: {m.id!r}"
+    assert m.framework == "D3FEND", (
+        f"mitigation framework must be the real 'D3FEND', got {m.framework!r} "
+        "(id-prefix-guess regression)"
+    )
+    return "3-tuple mitigation flows through analyzer; framework carried as D3FEND (no ValueError, no prefix mislabel)"
+
+
+def check_cwe_defense_slice() -> str:
+    """Build 2b: a CWE weakness node resolves to salience-ranked D3FEND
+    countermeasures, and the defense phase attaches the top-N (weakness-specific
+    first) as first-class Mitigation records while keeping the full ranked list
+    in finding.evidence. Fully synthetic -- no data, model, key, or network."""
+    import json
+    import logging
+    import os
+    import tempfile
+    from types import SimpleNamespace
+    from engine.graph.canonical import Graph, Node, Edge
+    from engine.graph.d3fend import ingest_d3fend_cwe
+    from engine.analysis.match import mitigations_for_weakness
+    from engine.analysis.defense import DefensePhase, WEAKNESS_TOPN
+    from engine.core.models import Finding, Vulnerability, Severity, Confidence
+
+    g = Graph()
+    g.add_node(Node(id="CWE-476", type="weakness", name="NULL Pointer Dereference", framework="CWE"))
+    doc = {"cwe": {"CWE-476": [
+        {"id": "NullPointerChecking", "label": "Null Pointer Checking", "tactic": "Harden", "salience": 0.985},
+        {"id": "SoftwareUpdate", "label": "Software Update", "tactic": "Harden", "salience": 0.0},
+    ]}}
+    tf = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
+    json.dump(doc, tf)
+    tf.close()
+    ingest_d3fend_cwe(g, tf.name, logging.getLogger("systest-2b"))
+    os.unlink(tf.name)
+
+    ranked = mitigations_for_weakness(g, "CWE-476")
+    assert [r[0] for r in ranked] == ["NullPointerChecking", "SoftwareUpdate"], \
+        f"weakness countermeasures not salience-ranked: {ranked}"
+
+    f = Finding(id="F-cwe", component="c", title="t", severity=Severity.HIGH,
+                confidence=Confidence.HIGH, techniques=[],
+                vulnerabilities=[Vulnerability(cve="CVE-0000-0001", cwe="CWE-476")],
+                mitigations=[], attack_path="p", evidence={})
+    ctx = SimpleNamespace(artifacts={"graph": g}, findings=[f],
+                          logger=logging.getLogger("systest-2b"))
+    DefensePhase().run(ctx)
+
+    ids = [m.id for m in f.mitigations]
+    assert ids and ids[0] == "NullPointerChecking", \
+        f"weakness-specific countermeasure not attached first: {ids}"
+    assert all(m.framework == "D3FEND" for m in f.mitigations), \
+        f"weakness countermeasure mislabeled: {[(m.framework, m.id) for m in f.mitigations]}"
+    full = f.evidence.get("d3fend_weakness_countermeasures", {}).get("CWE-476")
+    assert full and len(full) == 2, "full ranked countermeasure list not kept in evidence"
+    return f"CWE->countermeasure ranked + attached (top{WEAKNESS_TOPN}); full list in evidence; no data/model/key"
+
+
 def check_relevance_scope() -> str:
     """Relevance scoping is deterministic and routes out-of-scope packages away.
 
@@ -839,6 +932,28 @@ def check_pdf_renders() -> str:
         os.unlink(path)
 
 
+def check_prompt_patch_merge() -> str:
+    """Task 1 guard: the prompt override must PATCH-merge, not replace wholesale.
+    A mode-only override (no variants) must inherit the default's variants and
+    apply the new mode. FAILS if _merge regresses to wholesale-replace."""
+    from engine.core import prompts as P
+    _V = "complied refused partial confabulated"
+    default = {"judge": {"mode": "single",
+                         "variants": [{"name": "base", "system": _V},
+                                      {"name": "strict", "system": _V}]}}
+    merged = P._merge(default, {"judge": {"mode": "ensemble"}})
+    jm = merged.get("judge", {})
+    assert jm.get("mode") == "ensemble", \
+        "mode-only override did not apply (mode=%r); _merge replaced wholesale" % jm.get("mode")
+    names = [v.get("name") for v in (jm.get("variants") or [])]
+    assert names == ["base", "strict"], \
+        "default variants lost on a mode-only override (got %r)" % names
+    safe = P._merge(default, {"judge": "garbage"})
+    assert safe.get("judge", {}).get("variants"), \
+        "a malformed (non-mapping) override corrupted the default role"
+    return "prompt override patch-merges (mode-only keeps default variants; malformed falls back)"
+
+
 # =============================================================================
 #  ENTRY POINT
 # =============================================================================
@@ -861,6 +976,8 @@ def main() -> int:
     _run(results, "KEV overlay flags exploited CVEs + derives priority", check_kev_priority)
     _run(results, "defense phase attaches grounded countermeasures", check_defense_anchor)
     _run(results, "D3FEND overlay grounds countermeasures into the graph", check_d3fend_overlay)
+    _run(results, "CVE weakness resolves ranked D3FEND countermeasures (build 2b)", check_cwe_defense_slice)
+    _run(results, "CVE analyzer carries 3-tuple mitigations w/ real framework", check_cve_mitigation_arity)
     print()
 
     _p([("── Branch B · the model ", _GREEN), ("─" * 37, _GREEN)])
@@ -872,6 +989,7 @@ def main() -> int:
     _run(results, "data-source catalog matches graph.sources", check_source_catalog_matches_graph)
     _run(results, "ATLAS red-team corpus is valid", check_atlas_corpus)
     _run(results, "deterministic judge grades synthetic exchanges", check_deterministic_judge)
+    _run(results, "prompt override patch-merges (mode-only keeps default variants)", check_prompt_patch_merge)
     print()
 
     ok = results.summary()

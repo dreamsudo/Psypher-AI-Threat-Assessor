@@ -52,13 +52,18 @@ def _load_yaml(path: str) -> dict:
 
 
 def _merge(default: dict, override: dict) -> dict:
-    """Per-role override: an override role replaces the default role wholesale."""
+    """Per-role patch-merge: an override role updates only the keys it names;
+    keys it omits (e.g. variants) fall through to the default role. A non-mapping
+    override role is ignored (default kept); a bad value fails safe downstream and
+    the judge rubric floor still applies in get_prompts."""
     merged = dict(default)
     for role, spec in (override or {}).items():
-        if isinstance(spec, dict) and "variants" in spec:
-            merged[role] = spec
-        else:
-            _LOG.warning("prompts: override role '%s' malformed; keeping default", role)
+        if not isinstance(spec, dict):
+            _LOG.warning("prompts: override role '%s' malformed (not a mapping); keeping default", role)
+            continue
+        base = dict(merged.get(role) or {})
+        base.update(spec)
+        merged[role] = base
     return merged
 
 

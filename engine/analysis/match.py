@@ -190,6 +190,29 @@ def mitigations_for_technique(graph, technique_id) -> list[tuple[str, str, str]]
     return sorted((mid, nm, fw) for mid, (nm, fw) in out.items())
 
 
+def mitigations_for_weakness(graph, weakness_id) -> list[tuple[str, str, str, float]]:
+    """The graph-grounded countermeasures for a CWE weakness node, as
+    (id, name, framework, salience) tuples read from its ``mitigated_by`` edges
+    (build 2b: the pinned D3FEND CWE->countermeasure slice). Ordered by salience
+    descending, so the weakness-specific defense leads and near-universal
+    boilerplate trails. Only countermeasures that resolve to a real graph node
+    are returned; a CWE with no edges yields none (graceful degrade)."""
+    out: list[tuple[str, str, str, float]] = []
+    seen: set[str] = set()
+    for edge in graph.out_edges(weakness_id, "mitigated_by"):
+        node = graph.get(edge.dst)
+        if node is None or node.id in seen:
+            continue
+        seen.add(node.id)
+        try:
+            salience = float((getattr(edge, "attrs", None) or {}).get("salience", 0.0))
+        except (TypeError, ValueError):
+            salience = 0.0
+        out.append((node.id, node.name, node.framework, salience))
+    out.sort(key=lambda t: (-t[3], t[0]))
+    return out
+
+
 def _build_candidate(cve_id: str, component: str, observed: str | None, confirmed: bool,
                      evidence: Evidence | None, graph: Graph) -> Candidate:
     node = graph.get(cve_id)

@@ -69,3 +69,50 @@ def ingest_d3fend(graph, map_path, logger) -> None:
 
     logger.info("d3fend: added %d countermeasure node(s) + %d mitigated_by edge(s)",
                 nodes_added, edges_added)
+
+def ingest_d3fend_cwe(graph, slice_path, logger) -> None:
+    """Build 2b: overlay the pinned D3FEND CWE->countermeasure slice as
+    ``weakness -> mitigated_by -> countermeasure`` edges, salience carried on the
+    edge. Anchors only to CWE (weakness) nodes already in the graph -- including
+    the distro-promoted CVEs' weakness nodes, which are exactly the findings the
+    technique-based overlay leaves undefended. Same overlay contract as
+    ingest_d3fend: model-free, no touchpoint, fail-open (an absent or malformed
+    slice leaves the graph byte-identical)."""
+    try:
+        with open(slice_path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError) as exc:
+        logger.info("d3fend-cwe: slice absent/unreadable (%s); no weakness defenses added", exc)
+        return
+
+    cwe_map = data.get("cwe") or {}
+    if not cwe_map:
+        logger.info("d3fend-cwe: slice has no cwe mappings; no weakness defenses added")
+        return
+
+    nodes_added = 0
+    edges_added = 0
+    seen_edges: set = set()
+
+    for cwe_id, entries in cwe_map.items():
+        if not graph.has(cwe_id):  # anchor only to weakness nodes already in the graph
+            continue
+        for entry in entries or []:
+            cm_id = (entry.get("id") or "").strip()
+            if not cm_id:
+                continue
+            cm_label = entry.get("label") or cm_id
+            if not graph.has(cm_id):
+                graph.add_node(Node(id=cm_id, type="mitigation", name=cm_label, framework="D3FEND"))
+                nodes_added += 1
+            key = (cwe_id, cm_id)
+            if key in seen_edges:
+                continue
+            seen_edges.add(key)
+            graph.add_edge(Edge(src=cwe_id, dst=cm_id, type="mitigated_by",
+                                attrs={"salience": entry.get("salience", 0.0),
+                                       "tactic": entry.get("tactic", "")}))
+            edges_added += 1
+
+    logger.info("d3fend-cwe: added %d countermeasure node(s) + %d weakness mitigated_by edge(s)",
+                nodes_added, edges_added)

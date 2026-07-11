@@ -26,6 +26,7 @@ probes:
   - {id: world_readable_secrets, surface: infra,    kind: code,     enabled: true}
   - {id: mgmt_exposed,         surface: infra,      kind: code,     enabled: true}
   - {id: model_digest,         surface: infra,      kind: code,     enabled: true}
+  - {id: model_artifact_scan,  surface: infra,      kind: code,     enabled: true}
   - {id: pip_freeze,           surface: infra,      kind: code,     enabled: true}
   - {id: os_packages,          surface: infra,      kind: code,     enabled: true}
   - {id: unauth_inference,     surface: infra,      kind: code,     enabled: true}

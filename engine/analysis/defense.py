@@ -29,7 +29,10 @@ from __future__ import annotations
 
 from ..core.contracts import Phase, register_phase
 from ..core.models import Mitigation
-from .match import mitigations_for_technique
+from .match import mitigations_for_technique, mitigations_for_weakness
+
+
+WEAKNESS_TOPN = 4  # weakness countermeasures shown per finding; full ranked list -> evidence
 
 
 def _graph(ctx):
@@ -82,6 +85,19 @@ class DefensePhase(Phase):
                         existing.add(mid)
                         new_records.append(
                             Mitigation(framework=_framework_for(mid, fw), id=mid, text=name))
+            for v in getattr(finding, "vulnerabilities", []) or []:
+                cwe = getattr(v, "cwe", "") or ""
+                ranked = mitigations_for_weakness(graph, cwe) if cwe else []
+                if not ranked:
+                    continue
+                finding.evidence.setdefault("d3fend_weakness_countermeasures", {})[cwe] = [
+                    {"id": mid, "name": nm, "framework": fw, "salience": sal}
+                    for mid, nm, fw, sal in ranked]
+                for mid, nm, fw, sal in ranked[:WEAKNESS_TOPN]:
+                    if mid and mid not in existing:
+                        existing.add(mid)
+                        new_records.append(
+                            Mitigation(framework=_framework_for(mid, fw), id=mid, text=nm))
             if new_records:
                 mits.extend(new_records)
                 added += len(new_records)

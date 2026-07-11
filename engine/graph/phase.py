@@ -23,7 +23,7 @@ from .enrich import EnrichUnavailable, GraphEnricher
 from .stix import ingest_stix
 from .store import GraphStore
 from .promote import promote
-from .d3fend import ingest_d3fend
+from .d3fend import ingest_d3fend, ingest_d3fend_cwe
 
 
 class GraphPhase(Phase):
@@ -66,6 +66,9 @@ class GraphPhase(Phase):
         ingest_d3fend(graph,
                       _resolve(ctx.config, "packs/relevance/attack-artifact-map.json"),
                       ctx.logger)
+        ingest_d3fend_cwe(graph,
+                          _resolve(ctx.config, "data/d3fend/cwe-countermeasures.json"),
+                          ctx.logger)
         ctx.artifacts["graph"] = graph
         ctx.artifacts["graph_hash"] = graph.hash()
 

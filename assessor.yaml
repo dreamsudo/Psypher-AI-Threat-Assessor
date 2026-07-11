@@ -19,6 +19,7 @@ probes:
     - "packs/probes/model-redteam"
     - "packs/probes/host-isolation"
     - "packs/probes/model-endpoint"
+    - "packs/probes/model-artifact"
   tiers:
     passive:     { enabled: true }
     active_safe: { enabled: true }
@@ -42,6 +43,7 @@ probes:
     - "mgmt_exposed"
     - "endpoint_banner"
     - "model_digest"
+    - "model_artifact_scan"
     - "rt_prompt_injection"
 
 intake:

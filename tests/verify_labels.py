@@ -69,8 +69,8 @@ def _corpus_ids():
 
 # Technique + CWE ids hardcoded in the posture phase (kept in sync by hand — if
 # you add a posture rule, add its ids here so the verifier covers them).
-_POSTURE_TECH = ["T1611", "T1046", "AML.T0040", "AML.T0010"]
-_POSTURE_CWE  = ["CWE-250", "CWE-306", "CWE-353", "CWE-693"]
+_POSTURE_TECH = ["T1611", "T1046", "AML.T0040", "AML.T0010", "AML.T0010.003"]
+_POSTURE_CWE  = ["CWE-250", "CWE-306", "CWE-353", "CWE-693", "CWE-502"]
 
 def main():
     nodes, get = _load_graph_nodes()

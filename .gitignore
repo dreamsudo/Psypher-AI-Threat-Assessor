@@ -1,17 +1,42 @@
+# --- environment / python ---
 .venv/
 __pycache__/
 *.pyc
 *.swp
+
+# --- backups (never commit) ---
 *.bak
 *.bak-*
-build/graph/
-logs/
-assessments/
+backup-*.tar.gz
+
+# --- caches / scratch: ignore contents, keep the folder ---
+build/graph/*
+!build/graph/.gitkeep
+build/measure/
 blackbox-out/
-data/atlas-data/
-data/attack-stix-data/
-data/cwe/
 _dumps/
-data/nvd/
-data/distro/
-data/d3fend/
+
+# --- run outputs: ignore contents, keep the folder ---
+logs/*
+!logs/.gitkeep
+assessments/*
+!assessments/.gitkeep
+
+# --- generated datasets: ignore the big files, KEEP the folder ---
+data/nvd/*
+!data/nvd/.gitkeep
+data/distro/*
+!data/distro/.gitkeep
+data/atlas-data/*
+!data/atlas-data/.gitkeep
+data/attack-stix-data/*
+!data/attack-stix-data/.gitkeep
+data/cwe/*
+!data/cwe/.gitkeep
+
+# --- D3FEND: ignore the fat raw dumps, but COMMIT the pinned slice ---
+data/d3fend/*
+!data/d3fend/.gitkeep
+!data/d3fend/cwe-countermeasures.json
+repo-bundle_*/
+flatten_*/
