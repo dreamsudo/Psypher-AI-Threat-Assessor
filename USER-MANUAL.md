@@ -1506,33 +1506,4 @@ Add `--verbose` to a run (`./run.sh --verbose run`) to see detailed, stage-by-st
 
 ---
 
-# Closing — What This Manual Replaces
-
-This User Manual is the complete, standalone operator's guide to the Psypher AI Threat Assessor. It carries you from a fresh clone all the way to confidently running assessments and reading their reports, and it's built on a line-by-line reading of the actual code and scripts, so every command, setting, and behavior in it matches the real system. With all seven parts complete, an authorized operator needs no other user-facing document to get from zero to productive.
-
-## Consistency
-
-Everything in this manual was verified against the source: the setup commands are the actual build scripts, the configuration keys and defaults are the real `assessor.yaml`, the run commands are the engine's actual command-line interface (`./run.sh run` and `./run.sh validate`, options before the command), the credential scripts are sourced as they require (`source setkey.sh`), and the self-check and verifier invocations are the real module commands. The current behavior is documented throughout — including the D3FEND weakness-to-countermeasure build step and the named defenses it puts on infrastructure findings — and the honest-coverage cases (no findings, a vulnerability with no technique, a weakness with no defense) are explained as features, not gaps. It's publication-safe: generic, repo-relative commands and no personal or environment-specific details, with the authorized-use and refusal-test framing kept throughout.
-
-> 📌 **One honest caveat.** This manual is **code-accurate, not run-tested end to end.** Every command matches the actual scripts and the CLI, and the data parsers line up with the real inputs (the Debian JSON structure and the D3FEND SPARQL-results shape both match what the builders expect) — but the manual was written from a close reading of the source, not from executing a full assessment. The most likely place a first real run needs attention is the two datasets you fetch by hand in Part III (Steps 4 and 6): make sure each landed at the right path in the right shape. Everything the manual *asserts* is grounded in the code; "read-accurate" is simply a weaker claim than "ran it and watched it work," and it would be dishonest to imply the stronger one.
-
-## Which documents this replaces
-
-For an operator, this manual supersedes the earlier user-facing documents — their how-to and reference content is consolidated here, mapped to specific chapters:
-
-| Earlier document | Status | Where its content now lives |
-|------------------|--------|-----------------------------|
-| `PSYPHER-USER-MANUAL.md` (prior) | **Retire** — fully superseded | This document in its entirety |
-| `PSYPHER-SETUP-MANUAL.md` | Consolidated | Part III (Setup From Zero) |
-| `PSYPHER-DATA-SOURCES.md` | Consolidated | Part III (the datasets) and Part VII §7.1 (keeping data current) |
-| `PSYPHER-CVE-SEED-GUIDE.md` | Consolidated | Part III (the CVE data) and Part II (how the graph uses it) |
-| `PSYPHER-CONTROL-PLANE-MANUAL.md` | Consolidated | Part IV (Configuration) |
-| `PSYPHER-POLICY-MANUAL.md` | Consolidated | Part IV §4.5 and Part VI §6.3 (policy profiles) |
-| `PSYPHER-POSTURE-MANUAL.md` | Consolidated | Part II and Part V (posture findings) |
-| `PSYPHER-CROSS-OS-MANUAL.md` | Consolidated | Part III (prerequisites) and Part VII (troubleshooting) |
-| `PSYPHER-POCKET-MANUAL.md` | Consolidated | Part VII §7.3 (the reference cheat-sheets) |
-| `psypher-corpus-mapping-SOP.md` | Consolidated | Part VI §6.2 (adding an attack, kept grounded) |
-
-The two companion documents remain distinct and are **not** replaced by this manual: the **Developer Manual** is the code-level reference for extending the system beyond the no-code edits in Part VI, and the **technical paper** is the narrative of what Psypher is and how it came to be. Together with this User Manual, they cover the tool for its three audiences — the operator (this manual), the developer, and the reader who wants the story.
-
 *(End of the Psypher AI Threat Assessor User Manual.)*
