@@ -1920,34 +1920,4 @@ This part is the reference capstone: the guarantees restated as the design decis
 *(End of Part VIII.)*
 
 ---
-
-# Closing — Document Retirement & Consistency
-
-This manual was written to be the single authoritative developer and architecture reference for the Psypher AI Threat Assessor: one document, built by reading the actual source file by file, that covers what the system is (Part I), how it is designed and flows (Part II), how to set it up, configure it, and run it (Parts III–V), what every file does at the code level (Part VI), how to extend it (Part VII), and the principles, invariants, and reference tables that hold it together (Part VIII). With Parts I–VIII complete and the repository map fully resolved, the developer-facing content previously spread across several documents now lives here.
-
-## What this manual supersedes
-
-| Source document | Status | Where its content now lives |
-|-----------------|--------|-----------------------------|
-| Prior developer manual (2026-07-09 base) | **Retire** — fully superseded | This document in its entirety, at greater depth and from current source |
-| Control-plane manual | Consolidated | Part IV (every `assessor.yaml` key) and §6.1 (`config.py`) |
-| Setup manual | Consolidated | Part III (setup from zero) and §6.7 (the data builders) |
-| User manual | Consolidated | Part V (running and reading) and §6.5 (the renderers) |
-| Policy manual | Consolidated | Part IV (profiles) and §6.4 (`policy.py`, the floor) |
-| Posture manual | Consolidated | §6.4 (`posture.py`, the mapping rules and firewall) |
-| CVE-seed guide | Consolidated | Part III (build steps) and §6.3 (`cve.py`, `promote.py`) |
-| Pocket / quick-reference | Consolidated | Part VIII §8.4 (reference tables) and §8.5 (glossary) |
-| Corpus-mapping SOP | Consolidated | §6.6 (the corpus) and §7.2 (add a red-team attack) |
-| POC technical paper | **Retain as distinct** | Complementary — the narrative, origin, and design rationale; not superseded |
-
-The recommendation is to **retire the prior developer manual outright** and to treat this document as the authoritative developer/architecture reference in place of the consolidated operator manuals. If the team wants to keep any of those as short, operator-facing quick-start pages, they can remain — but their developer and architecture content is now here, mapped to the specific parts above, so a change to the system needs updating in one place. The POC technical paper stays as the complementary "why and how it came to be" narrative.
-
-## Consistency
-
-The manual is internally consistent across its eight parts. The repository map at the front is the single coverage spine — every file is marked, forward references from Parts II–V resolve into the per-file walk in Part VI, and Part VII's procedures and Part VIII's invariants both point back to the mechanisms Part VI established. Branding is reproduced verbatim wherever it appears (the locked name, tagline, and attribution), publication-safety was maintained throughout (no personal paths or usernames, generic repo-relative commands, the defensive refusal-test framing preserved for the corpus and red-team paths), and contested specifics were taken from source rather than from summaries — the system test's **20 checks**, the `deb`/`cve` SQLite schemas, the light judge schema, and the mitigation-framework contract were each read from the code.
-
-**One honest reconciliation note.** This manual was written against a curated source snapshot. The weakness-grounded D3FEND defense layer postdates that snapshot: its two out-of-tree files (`build_d3fend_cwe_slice.py`, `data/d3fend/cwe-countermeasures.json`) are documented by their input/output contract in §6.7, and the localized additions to the five in-tree files that consume it (`analyze.py`'s mitigation-unpack sites, `defense.py`'s weakness attach loop, `match.py`'s `mitigations_for_weakness`, and `d3fend.py`/`graph/phase.py`'s CWE overlay) are marked at their locations in §6.3–6.4. The delta introduces no new node or edge type. When the current tree is in hand, those six marked spots are the complete checklist to reconcile line by line; nothing else in the manual is affected.
-
-**A second honest caveat — read-accurate, not run-tested.** This manual is derived from a close reading of the source, not from executing the pipeline end to end. Every command matches the actual scripts and the CLI, and the data parsers were checked against the real input shapes (the Debian tracker JSON structure and the D3FEND SPARQL-results bindings both match what `distro_index.py` and `d3fend_extract.py` expect). But "verified against the source" is a weaker claim than "ran it and watched it pass," and the first true integration test is an actual run. The likeliest seam to check on a first run is the two hand-acquired datasets in Part III (Steps 4 and 6): confirm each landed at the right path in the expected shape. Everything the manual asserts is grounded in the code; it simply does not assert more than that.
-
 *(End of the Psypher AI Threat Assessor Developer Manual.)*
