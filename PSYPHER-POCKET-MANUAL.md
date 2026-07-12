@@ -305,7 +305,7 @@ PSYPHER_POLICY=exploratory ./run.sh run   # bolder judging
 
 ## 💯 Real talk (so you're not surprised)
 
-- **These commands match the actual code** — verified line by line. But heads up: this build has been **read-accurate, not run-tested end-to-end**. The parsers line up with the real inputs (the Debian JSON shape and the D3FEND bindings shape both match), but the first true integration test is *you* running it. If a seam's off, it'll most likely be one of the two hand-grabbed data files (§DATA) — check they're the right shape at the right path.
+- The first true integration test is *you* running it. If a seam's off, it'll most likely be one of the two hand-grabbed data files (§DATA) — check they're the right shape at the right path.
 - **The D3FEND export URL isn't hardcoded on purpose** — MITRE moves it. Grab it from the resources page, save to the path in §DATA, done.
 - Everything here is the **deploy + config + run** surface. It's complete for *that* — getting Psypher live and pointed at a target. For the "why" and the "how it works," that's the other manuals.
 
