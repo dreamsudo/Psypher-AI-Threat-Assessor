@@ -681,12 +681,4 @@ PSYPHER_POLICY=exploratory ./run.sh run   # bolder behavioral prediction
 Environment variables: `PSYPHER_POLICY`, `PSYPHER_CLAUDE_MODEL`, `ANTHROPIC_API_KEY`, `PSYPHER_INSECURE_TLS`, `PSYPHER_APPROVE_INTRUSIVE`, `PSYPHER_REDTEAM_SAMPLES`.
 
 ---
-
-## 13. Honest notes
-
-- **Code-accurate, not run-tested end to end.** Every command here matches the actual scripts, the CLI, and the pack formats — verified against the source. But this manual was written from a close reading of the code, not from executing a full assessment. The most likely place a first real run needs attention is the two hand-fetched datasets in §4.3: confirm each landed at the right path in the expected shape. "Read-accurate" is a weaker claim than "ran it and watched it pass," and it would be dishonest to imply the stronger one.
-- **The D3FEND export URL is intentionally not hardcoded** — MITRE moves it. Get it from the resources page, save it to the path in §4.3, and you are set.
-- **Placeholders in samples are deliberate.** The configuration examples use generic identities (`operator@example.org`, `user@target-host`); never commit real hostnames, usernames, or handles to a shared repository.
-- **Authorized targets only.** Everything here assumes you have permission to test the system you point it at. The corpus measures refusal; it does not manufacture harm. Keep it that way.
-
 *Psypher AI Threat Assessor · Powered by Claude · Designed by PsypherLabs*
