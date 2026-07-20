@@ -6,8 +6,6 @@
 
 ---
 
-This is the complete, take-you-by-the-hand guide to using the Psypher AI Threat Assessor. It carries you from "what is this and why should I care" all the way to confidently running an assessment against a system you're authorized to test and understanding every part of the report it produces. It assumes you're a capable operator, not necessarily a developer: it explains not just *what* to do but *why*, so you can adapt it to your own environment. Where you want the code-level detail behind any of this, the Developer Manual is the companion volume; this manual is the readable one.
-
 > ⚠️ **Authorized use only.** Psypher is a penetration-testing tool. Run it only against models and infrastructure you own or have explicit written authorization to test. Its adversarial prompt corpus is a **refusal test** — it measures whether a model *resists* attacks, not a generator of harmful content — but the infrastructure probes actively inspect a live system, so treat every run as a real security engagement.
 
 ## What the system is made of (your map)
@@ -53,19 +51,6 @@ Psypher AI Threat Assessor
 └─ The reports           what you get out: a structured record, a Markdown brief,
                          two HTML reports, and an ATT&CK Navigator layer
 ```
-
-Keep this map in mind as you read — every chapter fills in one area of it.
-
-## Table of contents
-
-- **Part I — What Psypher Is, and Why It Matters** — orientation and the case for the tool
-- **Part II — How the System Works & Flows** — the mental model, in plain terms
-- **Part III — Setup From Zero** — from a fresh clone to a working install, step by step
-- **Part IV — Configuration** — every setting you'll touch, explained
-- **Part V — Running & Reading** — run an assessment and understand the results
-- **Part VI — Making Basic Edits** — customize what gets tested, safely
-- **Part VII — Keeping It Current, Troubleshooting & Reference** — maintenance, fixes, and lookup tables
-
 ## Chapter checklist
 
 *(Progress marker for this manual — `[x]` done · `[~]` in progress · `[ ]` not yet.)*
