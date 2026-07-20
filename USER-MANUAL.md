@@ -80,20 +80,6 @@ Keep this map in mind as you read — every chapter fills in one area of it.
 - **Part VI — Making Basic Edits** — customize what gets tested, safely
 - **Part VII — Keeping It Current, Troubleshooting & Reference** — maintenance, fixes, and lookup tables
 
-## Chapter checklist
-
-*(Progress marker for this manual — `[x]` done · `[~]` in progress · `[ ]` not yet.)*
-
-- `[x]` Front matter — branding, system map, TOC, quick-start
-- `[x]` Part I — What Psypher Is, and Why It Matters
-- `[x]` Part II — How the System Works & Flows
-- `[x]` Part III — Setup From Zero
-- `[x]` Part IV — Configuration
-- `[x]` Part V — Running & Reading
-- `[x]` Part VI — Making Basic Edits
-- `[x]` Part VII — Keeping It Current, Troubleshooting & Reference
-- `[x]` Retirement list (which prior docs this manual replaces)
-
 ---
 
 ## Quick-start — the fastest path to a first run
