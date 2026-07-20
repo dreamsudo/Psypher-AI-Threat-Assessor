@@ -9,7 +9,7 @@
 ---
 > ⚠️ **Authorized use only.** Psypher is a penetration-testing tool. Run it only against models and infrastructure you own or have explicit written authorization to test. Its adversarial prompt corpus is a **refusal test** — it measures whether a model *resists* attacks, not a generator of harmful content — but the infrastructure probes actively inspect a live system, so treat every run as a real security engagement.
 
-## What the system is made of (your map)
+## The system
 
 ![System Overview — inputs feed a sealed engine that runs two branches over one grounded graph, then emits one report](images/P01-system-overview.png)
 
