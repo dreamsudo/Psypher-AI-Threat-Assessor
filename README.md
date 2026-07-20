@@ -51,19 +51,6 @@ Psypher AI Threat Assessor
 └─ The reports           what you get out: a structured record, a Markdown brief,
                          two HTML reports, and an ATT&CK Navigator layer
 ```
-## Chapter checklist
-
-*(Progress marker for this manual — `[x]` done · `[~]` in progress · `[ ]` not yet.)*
-
-- `[x]` Front matter — branding, system map, TOC, quick-start
-- `[x]` Part I — What Psypher Is, and Why It Matters
-- `[x]` Part II — How the System Works & Flows
-- `[x]` Part III — Setup From Zero
-- `[x]` Part IV — Configuration
-- `[x]` Part V — Running & Reading
-- `[x]` Part VI — Making Basic Edits
-- `[x]` Part VII — Keeping It Current, Troubleshooting & Reference
-- `[x]` Retirement list (which prior docs this manual replaces)
 
 ---
 
