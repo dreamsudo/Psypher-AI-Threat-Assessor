@@ -1,7 +1,4 @@
 # The Psypher AI Threat Assessor — User Manual
-
-> *Illustrated edition — 50+ schematic figures embedded throughout. Each figure traces to its exact source file and Developer-Manual section.*
-
 **Psypher AI Threat Assessor**
 *Full-stack AI/ML security — MITRE ATLAS–grounded penetration testing of the model and the infrastructure it runs on*
 **Powered by Claude · Designed by PsypherLabs**
